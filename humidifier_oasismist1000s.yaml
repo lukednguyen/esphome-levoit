@@ -17,7 +17,7 @@ esphome:
       - script.execute: update_wifi_led
 
 external_components:
-  - source: components/
+  - source: github://lukednguyen/esphome-levoit
     components: [humidifier_oasismist1000s]
 
 esp32:

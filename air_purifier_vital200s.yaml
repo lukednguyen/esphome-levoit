@@ -18,7 +18,7 @@ esphome:
       - fan.turn_on: air_purifier_fan
 
 external_components:
-  - source: components/
+  - source: github://lukednguyen/esphome-levoit
     components: [air_purifier_vital200s]
 
 esp32:
