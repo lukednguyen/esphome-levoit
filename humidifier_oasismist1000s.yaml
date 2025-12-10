@@ -1,0 +1,85 @@
+script:
+  - id: update_wifi_led
+    mode: restart
+    then:
+      - lambda: |-
+          id(humidifier).send_wifi_status(
+            id(api_connected).state,
+            wifi::global_wifi_component->is_connected()
+          );
+
+esphome:
+  name: humidifier
+  friendly_name: Humidifier
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: update_wifi_led
+
+external_components:
+  - source: components/
+    components: [humidifier_oasismist1000s]
+
+esp32:
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: !secret api_key_humidifier
+
+ota:
+  - platform: esphome
+
+captive_portal:
+
+web_server:
+  port: 80
+  
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  on_connect:
+    - script.execute: update_wifi_led
+  on_disconnect:
+    - script.execute: update_wifi_led
+
+binary_sensor:
+  - platform: status
+    id: api_connected
+    on_press:
+      - script.execute: update_wifi_led
+    on_release:
+      - script.execute: update_wifi_led
+
+uart:
+  id: uart_bus
+  tx_pin: GPIO19
+  rx_pin: GPIO18
+  baud_rate: 115200
+
+humidifier_oasismist1000s:
+  id: humidifier
+  uart_id: uart_bus
+  humidity:
+    name: "Humidity"
+  reservoir:
+    name: "Reservoir"
+  water:
+    name: "Water Available"
+  misting:
+    name: "Misting"
+  power:
+    name: "Power"
+  display:
+    name: "Display"
+  mode:
+    name: "Mode"
+  target_humidity:
+    name: "Target Humidity"
+  mist_level:
+    name: "Mist Level"
