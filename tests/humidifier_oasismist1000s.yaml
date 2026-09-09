@@ -1,0 +1,8 @@
+# CI-only wrapper. Builds the real sample config (../humidifier_oasismist1000s.yaml)
+# against the components in this working tree instead of the published GitHub repo.
+# Not intended for flashing to a device.
+substitutions:
+  component_source: ../components
+
+packages:
+  device: !include ../humidifier_oasismist1000s.yaml
