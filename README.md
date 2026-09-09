@@ -9,6 +9,34 @@ Both talk to the device's own MCU over the serial link that the stock Wi-Fi
 module used, so all control and sensor data stays local — no cloud, no Levoit
 app.
 
+## ⚠️ Before you flash: back up the stock firmware
+
+The Wi-Fi module inside these devices **is** an ESP32-C3. This project reflashes
+that chip **in place** with ESPHome — it does not add a second board. Flashing
+ESPHome **overwrites Levoit's original firmware**, and Levoit does not publish
+it anywhere. If you do not save a copy first, there is **no way back** — the
+Levoit app, cloud, and Levoit OTA updates are gone permanently.
+
+> [!WARNING]
+> Read out and save the **entire flash** before you write anything to the chip.
+> Do this once, while the device still has stock firmware:
+>
+> ```bash
+> # ESP32-C3 is typically 4 MB (0x400000). Adjust if esptool reports otherwise.
+> esptool.py --port /dev/ttyUSB0 --baud 460800 read_flash 0x0 0x400000 \
+>   levoit-<model>-stock-firmware.bin
+> ```
+>
+> Verify the file is the expected size, then store it somewhere **off the
+> device** (not just on the machine you flashed from). To return to stock later:
+>
+> ```bash
+> esptool.py --port /dev/ttyUSB0 write_flash 0x0 levoit-<model>-stock-firmware.bin
+> ```
+>
+> Each unit's backup is unique (it contains that unit's Wi-Fi MAC and factory
+> calibration) — keep one `.bin` per device and label it.
+
 ## Quick start (ESPHome Builder / Home Assistant add-on)
 
 Nothing has to be checked out or copied locally.
@@ -41,7 +69,9 @@ pulls straight from GitHub.
 
 ## Hardware / wiring
 
-An ESP32-C3 replaces the stock Wi-Fi module inside the device. Serial link:
+The stock Wi-Fi module inside the device is an ESP32-C3, reflashed in place with
+ESPHome (see the backup warning above). It reaches the main MCU over this serial
+link:
 
 | Signal | ESP32-C3 pin | Notes |
 |---|---|---|
