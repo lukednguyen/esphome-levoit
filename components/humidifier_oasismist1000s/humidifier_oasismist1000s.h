@@ -25,13 +25,12 @@ class HumidifierFan : public fan::Fan, public Parented<Humidifier> {
   fan::FanTraits get_traits() override;
   void control(const fan::FanCall &call) override;
 
-  // Not a Component override: called manually from Humidifier::setup().
-  // Registers the preset modes only — the device is authoritative, so nothing
-  // is restored or transmitted at boot (the MCU's status packets populate
-  // this entity within one poll).
+  // called manually from Humidifier::setup(), not a Component override.
+  // registers preset modes only; device is authoritative, so nothing is
+  // restored or sent at boot (MCU status packets populate this within one poll)
   void setup();
 
-  // Called from the RX path: the MCU is the source of truth for the mode.
+  // called from RX path; MCU is source of truth for mode
   void publish_mode(Mode mode);
 };
 

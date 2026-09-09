@@ -63,10 +63,9 @@ inline constexpr Address ADDR_TIMER_SET = {0x02, 0x19, 0x50, 0x00};
 inline constexpr Address ADDR_TIMER = {0x02, 0x1B, 0x50, 0x00};
 inline constexpr Address ADDR_DISPLAY_LOCK = {0x02, 0x40, 0x51, 0x00};
 
-// Protocol notes (observed, not implemented):
-//   ADDR_FILTER_RESET  = {0x02, 0x05, 0x55, 0x00}, PayloadLen 6, action byte 0x03.
-//   Filter reset is write-only: the MCU never reports filter life, so there is nothing
-//   sensible to expose in Home Assistant. Left unimplemented on purpose.
+// Observed, not implemented:
+//   ADDR_FILTER_RESET = {0x02, 0x05, 0x55, 0x00}, PayloadLen 6, action byte 0x03.
+//   Write-only: MCU never reports filter life, so nothing to expose in HA.
 
 // =============================================================================
 // TLV Types - Status Response
@@ -97,7 +96,7 @@ enum class TimerTLV : uint8_t {
 // TLV Types - WiFi LED (ADDR_WIFI_LED)
 // =============================================================================
 
-// The MCU echoes these TLVs back on ADDR_WIFI_LED; we ignore the RX side.
+// MCU echoes these back on ADDR_WIFI_LED; RX side ignored
 enum class WifiLedTLV : uint8_t {
   STATUS = 0x01,
   BLINK_ON = 0x02,
@@ -201,9 +200,9 @@ enum class DisplayBrightness : uint8_t {
 // =============================================================================
 
 enum class WifiLedStatus : uint8_t {
-  OFF = 0x00,       // LED off (disconnected)
-  SOLID = 0x01,     // LED solid on (HA connected)
-  BLINKING = 0x02,  // LED blinking (WiFi only, connecting to HA)
+  OFF = 0x00,       // disconnected
+  SOLID = 0x01,     // HA connected
+  BLINKING = 0x02,  // WiFi only, connecting to HA
 };
 
 inline constexpr uint16_t WIFI_BLINK_MS = 500;

@@ -45,7 +45,7 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_AIR_QUALITY): text_sensor.text_sensor_schema(
                 icon="mdi:weather-windy",
             ),
-            # Fan (restore_mode is included in fan_schema)
+            # Fan (restore_mode comes from fan_schema)
             cv.Optional(CONF_FAN): fan.fan_schema(
                 PurifierFan,
                 icon="mdi:air-filter",

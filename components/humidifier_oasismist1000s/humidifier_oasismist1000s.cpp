@@ -16,11 +16,11 @@ static const char *const TAG = "humidifier_oasismist1000s";
 fan::FanTraits HumidifierFan::get_traits() {
   fan::FanTraits traits;
   traits.set_speed(true);
-  // ESPHome fan speeds are 1..count, which maps 1:1 onto mist levels 1..9.
+  // fan speeds 1..count map 1:1 onto mist levels 1..9
   traits.set_supported_speed_count(MIST_LEVEL_MAX);
   traits.set_direction(false);
   traits.set_oscillation(false);
-  // Preset modes live on the entity since ESPHome 2026.4.0; wire them in here.
+  // preset modes moved to the entity in 2026.4.0
   this->wire_preset_modes_(traits);
   return traits;
 }
@@ -33,14 +33,14 @@ void HumidifierFan::control(const fan::FanCall &call) {
   }
 
   if (call.has_preset_mode()) {
-    // send_mode() powers the device on first if it is off.
+    // send_mode() powers the device on first if off
     parent_->send_mode(string_to_mode(call.get_preset_mode()));
   }
 
   if (call.get_speed().has_value()) {
     const int speed = *call.get_speed();
     if (speed >= MIST_LEVEL_MIN && speed <= MIST_LEVEL_MAX) {
-      // Switches the device to Manual and powers it on if needed.
+      // switches to Manual and powers on if needed
       parent_->send_mist_level(static_cast<uint8_t>(speed), true);
     }
   }
@@ -64,7 +64,7 @@ void Humidifier::setup() {
   rx_buffer_.reserve(RX_BUFFER_MAX);
   invalidate_diagnostic_sensors_();
 
-  // Registers the fan's preset modes; nothing is sent to the MCU here.
+  // registers the fan's preset modes; nothing sent to the MCU here
   if (fan_ != nullptr) {
     fan_->setup();
   }
@@ -95,7 +95,7 @@ void Humidifier::dump_config() {
 void Humidifier::read_uart_() {
   const uint32_t now = millis();
 
-  // Clear stale data
+  // drop stale data
   if (!rx_buffer_.empty() && (now - last_rx_time_) > RX_TIMEOUT_MS) {
     rx_buffer_.clear();
   }
@@ -105,28 +105,26 @@ void Humidifier::read_uart_() {
     read_byte(&byte);
     last_rx_time_ = now;
 
-    // Sync to header
+    // sync to header
     if (rx_buffer_.empty() && byte != PACKET_HEADER) {
       continue;
     }
 
     rx_buffer_.push_back(byte);
 
-    // Wait for minimum header
+    // wait for minimum header
     if (rx_buffer_.size() < RX_MIN_HEADER_LEN) {
       continue;
     }
 
-    // Calculate expected size
     const uint8_t payload_len = rx_buffer_[static_cast<size_t>(Offset::PAYLOAD_LEN)];
     const size_t expected_size = RX_MIN_HEADER_LEN + payload_len;
 
-    // Wait for complete packet
+    // wait for complete packet
     if (rx_buffer_.size() < expected_size) {
       continue;
     }
 
-    // Validate and process
     const uint8_t type = rx_buffer_[static_cast<size_t>(Offset::TYPE)];
     if (type == static_cast<uint8_t>(PacketType::STATUS)) {
       const uint8_t received_checksum = rx_buffer_[static_cast<size_t>(Offset::CHECKSUM)];
@@ -142,7 +140,7 @@ void Humidifier::read_uart_() {
     rx_buffer_.clear();
   }
 
-  // Prevent overflow
+  // prevent overflow
   if (rx_buffer_.size() > RX_BUFFER_MAX) {
     rx_buffer_.clear();
   }
@@ -328,8 +326,7 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
       break;
 
     case TLV::WATER:
-      // Moisture sensor: ON = wet (has water), OFF = dry (empty)
-      // Only update when power ON and reservoir attached
+      // ON = wet, OFF = dry; only update when powered on and reservoir attached
       if (power_on_ && water_sensor_ != nullptr && reservoir_sensor_ != nullptr && reservoir_sensor_->state) {
         water_sensor_->publish_state(v == VALUE_OFF);
       }
@@ -373,7 +370,7 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
 
 void Humidifier::invalidate_diagnostic_sensors_() {
   if (reservoir_sensor_ != nullptr) reservoir_sensor_->invalidate_state();
-  // water_sensor_ excluded - sticks after power off
+  // water_sensor_ excluded: sticks after power off
   if (misting_sensor_ != nullptr) misting_sensor_->invalidate_state();
 }
 
