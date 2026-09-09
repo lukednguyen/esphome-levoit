@@ -25,19 +25,24 @@ fan::FanTraits PurifierFan::get_traits() {
   traits.set_supported_speed_count(FAN_SPEED_COUNT);
   traits.set_direction(false);
   traits.set_oscillation(false);
-  traits.set_supported_preset_modes({MODE_AUTO, MODE_SLEEP, MODE_MANUAL});
+  // Preset modes live on the entity since ESPHome 2026.4.0; wire them in here.
+  this->wire_preset_modes_(traits);
   return traits;
 }
 
 void PurifierFan::setup() {
+  // Preset modes must be registered before restore_state_(): FanRestoreState
+  // resolves the stored preset index against this list.
+  this->set_supported_preset_modes({MODE_AUTO, MODE_SLEEP, MODE_MANUAL});
+
   // Restore state from flash and apply to MCU
   this->restore_state_();
 
   if (this->state) {
-    ESP_LOGI(TAG, "Restoring fan: ON, mode: %s, speed: %d", this->preset_mode.c_str(), this->speed);
+    ESP_LOGI(TAG, "Restoring fan: ON, mode: %s, speed: %d", this->get_preset_mode().c_str(), this->speed);
     parent_->send_power(true);
-    if (!this->preset_mode.empty()) {
-      parent_->send_mode(string_to_mode(this->preset_mode));
+    if (this->has_preset_mode()) {
+      parent_->send_mode(string_to_mode(this->get_preset_mode().str()));
     }
     if (this->speed > 0) {
       parent_->send_fan_speed(this->speed);
@@ -53,9 +58,8 @@ void PurifierFan::control(const fan::FanCall &call) {
     parent_->send_power(*call.get_state());
   }
 
-  const std::string &preset = call.get_preset_mode();
-  if (!preset.empty()) {
-    parent_->send_mode(string_to_mode(preset));
+  if (call.has_preset_mode()) {
+    parent_->send_mode(string_to_mode(call.get_preset_mode()));
   }
 
   if (call.get_speed().has_value()) {
@@ -65,6 +69,11 @@ void PurifierFan::control(const fan::FanCall &call) {
       parent_->send_fan_speed(static_cast<uint8_t>(speed));
     }
   }
+}
+
+void PurifierFan::publish_mode(Mode mode) {
+  this->set_preset_mode_(mode_to_string(mode));
+  this->publish_state();
 }
 
 // =============================================================================
@@ -389,10 +398,7 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
 
     case TLV::MODE:
       last_mode_ = static_cast<Mode>(v);
-      if (fan_ != nullptr) {
-        fan_->preset_mode = mode_to_string(last_mode_);
-        fan_->publish_state();
-      }
+      if (fan_ != nullptr) fan_->publish_mode(last_mode_);
       ESP_LOGD(TAG, "Mode: %s", mode_to_string(last_mode_));
       break;
 
