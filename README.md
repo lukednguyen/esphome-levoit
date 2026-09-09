@@ -88,6 +88,14 @@ Common to both components:
 |---|---|---|
 | `uart_id` | — | ID of the `uart:` bus |
 | `update_interval` | `250ms` | MCU poll interval |
+| `wifi_status_led` | `false` | Drive the device's front LED from connection state (see below) |
+
+With `wifi_status_led: true` the front LED shows **solid** when Home Assistant
+is connected, a **slow blink** when Wi-Fi is up but Home Assistant is not, and a
+**fast blink** while searching for Wi-Fi. The key only arms the feature — the
+`update_wifi_led` script in the sample YAMLs is what actually calls it, so copy
+both. With the key off (the default) the component never sends the LED command
+and the LED keeps whatever state the device's MCU gave it.
 
 ### `air_purifier_vital200s`
 

@@ -87,6 +87,10 @@ uart:
 humidifier_oasismist1000s:
   id: humidifier
   uart_id: uart_bus
+  # Drive the front LED from connection state: solid = Home Assistant connected,
+  # slow blink = Wi-Fi only, fast blink = searching for Wi-Fi. Needs the
+  # update_wifi_led script above; delete both to leave the LED alone.
+  wifi_status_led: true
   fan:
     id: humidifier_fan
     name: "Humidifier"

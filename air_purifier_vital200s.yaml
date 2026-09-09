@@ -94,6 +94,10 @@ air_purifier_vital200s:
   # Cancel any timer started from the device's own timer button, so the purifier
   # never switches itself off. Off by default.
   # cancel_device_timer: true
+  # Drive the front LED from connection state: solid = Home Assistant connected,
+  # slow blink = Wi-Fi only, fast blink = searching for Wi-Fi. Needs the
+  # update_wifi_led script above; delete both to leave the LED alone.
+  wifi_status_led: true
   fan:
     id: air_purifier_fan
     name: "Air Purifier"
