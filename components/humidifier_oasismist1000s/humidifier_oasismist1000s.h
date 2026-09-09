@@ -6,7 +6,7 @@
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/switch/switch.h"
-#include "esphome/components/select/select.h"
+#include "esphome/components/fan/fan.h"
 #include "esphome/components/number/number.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "types.h"
@@ -20,23 +20,26 @@ class Humidifier;
 // Entity Classes
 // =============================================================================
 
-class PowerSwitch : public switch_::Switch, public Parented<Humidifier> {
-  void write_state(bool state) override;
+class HumidifierFan : public fan::Fan, public Parented<Humidifier> {
+ public:
+  fan::FanTraits get_traits() override;
+  void control(const fan::FanCall &call) override;
+
+  // Not a Component override: called manually from Humidifier::setup().
+  // Registers the preset modes only — the device is authoritative, so nothing
+  // is restored or transmitted at boot (the MCU's status packets populate
+  // this entity within one poll).
+  void setup();
+
+  // Called from the RX path: the MCU is the source of truth for the mode.
+  void publish_mode(Mode mode);
 };
 
 class DisplaySwitch : public switch_::Switch, public Parented<Humidifier> {
   void write_state(bool state) override;
 };
 
-class ModeSelect : public select::Select, public Parented<Humidifier> {
-  void control(const std::string &value) override;
-};
-
 class TargetHumidityNumber : public number::Number, public Parented<Humidifier> {
-  void control(float value) override;
-};
-
-class MistLevelNumber : public number::Number, public Parented<Humidifier> {
   void control(float value) override;
 };
 
@@ -59,25 +62,17 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   void set_water_sensor(binary_sensor::BinarySensor *s) { water_sensor_ = s; }
   void set_misting_sensor(binary_sensor::BinarySensor *s) { misting_sensor_ = s; }
 
-  void set_power_switch(PowerSwitch *s) {
-    s->set_parent(this);
-    power_switch_ = s;
+  void set_fan(HumidifierFan *f) {
+    f->set_parent(this);
+    fan_ = f;
   }
   void set_display_switch(DisplaySwitch *s) {
     s->set_parent(this);
     display_switch_ = s;
   }
-  void set_mode_select(ModeSelect *s) {
-    s->set_parent(this);
-    mode_select_ = s;
-  }
   void set_target_humidity_number(TargetHumidityNumber *n) {
     n->set_parent(this);
     target_humidity_number_ = n;
-  }
-  void set_mist_level_number(MistLevelNumber *n) {
-    n->set_parent(this);
-    mist_level_number_ = n;
   }
 
   // Commands
@@ -112,11 +107,9 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   binary_sensor::BinarySensor *reservoir_sensor_{nullptr};
   binary_sensor::BinarySensor *water_sensor_{nullptr};
   binary_sensor::BinarySensor *misting_sensor_{nullptr};
-  PowerSwitch *power_switch_{nullptr};
+  HumidifierFan *fan_{nullptr};
   DisplaySwitch *display_switch_{nullptr};
-  ModeSelect *mode_select_{nullptr};
   TargetHumidityNumber *target_humidity_number_{nullptr};
-  MistLevelNumber *mist_level_number_{nullptr};
 
   // State
   std::vector<uint8_t> rx_buffer_;

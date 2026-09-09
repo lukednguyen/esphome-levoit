@@ -13,15 +13,47 @@ static const char *const TAG = "humidifier_oasismist1000s";
 // Entity Implementations
 // =============================================================================
 
-void PowerSwitch::write_state(bool state) { parent_->send_power(state); }
+fan::FanTraits HumidifierFan::get_traits() {
+  fan::FanTraits traits;
+  traits.set_speed(true);
+  // ESPHome fan speeds are 1..count, which maps 1:1 onto mist levels 1..9.
+  traits.set_supported_speed_count(MIST_LEVEL_MAX);
+  traits.set_direction(false);
+  traits.set_oscillation(false);
+  // Preset modes live on the entity since ESPHome 2026.4.0; wire them in here.
+  this->wire_preset_modes_(traits);
+  return traits;
+}
+
+void HumidifierFan::setup() { this->set_supported_preset_modes({MODE_AUTO, MODE_MANUAL, MODE_SLEEP}); }
+
+void HumidifierFan::control(const fan::FanCall &call) {
+  if (call.get_state().has_value()) {
+    parent_->send_power(*call.get_state());
+  }
+
+  if (call.has_preset_mode()) {
+    // send_mode() powers the device on first if it is off.
+    parent_->send_mode(string_to_mode(call.get_preset_mode()));
+  }
+
+  if (call.get_speed().has_value()) {
+    const int speed = *call.get_speed();
+    if (speed >= MIST_LEVEL_MIN && speed <= MIST_LEVEL_MAX) {
+      // Switches the device to Manual and powers it on if needed.
+      parent_->send_mist_level(static_cast<uint8_t>(speed), true);
+    }
+  }
+}
+
+void HumidifierFan::publish_mode(Mode mode) {
+  this->set_preset_mode_(mode_to_string(mode));
+  this->publish_state();
+}
 
 void DisplaySwitch::write_state(bool state) { parent_->send_display(state); }
 
-void ModeSelect::control(const std::string &value) { parent_->send_mode(string_to_mode(value)); }
-
 void TargetHumidityNumber::control(float value) { parent_->send_target_humidity(static_cast<uint8_t>(value), true); }
-
-void MistLevelNumber::control(float value) { parent_->send_mist_level(static_cast<uint8_t>(value), true); }
 
 // =============================================================================
 // Component Lifecycle
@@ -31,6 +63,11 @@ void Humidifier::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Levoit Humidifier...");
   rx_buffer_.reserve(RX_BUFFER_MAX);
   invalidate_diagnostic_sensors_();
+
+  // Registers the fan's preset modes; nothing is sent to the MCU here.
+  if (fan_ != nullptr) {
+    fan_->setup();
+  }
 }
 
 void Humidifier::loop() { read_uart_(); }
@@ -44,11 +81,11 @@ void Humidifier::dump_config() {
   LOG_BINARY_SENSOR("  ", "Reservoir", reservoir_sensor_);
   LOG_BINARY_SENSOR("  ", "Water", water_sensor_);
   LOG_BINARY_SENSOR("  ", "Misting", misting_sensor_);
-  LOG_SWITCH("  ", "Power", power_switch_);
+  if (fan_ != nullptr) {
+    ESP_LOGCONFIG(TAG, "  Fan: %s", fan_->get_name().c_str());
+  }
   LOG_SWITCH("  ", "Display", display_switch_);
-  LOG_SELECT("  ", "Mode", mode_select_);
   LOG_NUMBER("  ", "Target Humidity", target_humidity_number_);
-  LOG_NUMBER("  ", "Mist Level", mist_level_number_);
 }
 
 // =============================================================================
@@ -286,7 +323,10 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
   switch (static_cast<TLV>(type)) {
     case TLV::POWER:
       power_on_ = (v == VALUE_ON);
-      if (power_switch_ != nullptr) power_switch_->publish_state(power_on_);
+      if (fan_ != nullptr) {
+        fan_->state = power_on_;
+        fan_->publish_state();
+      }
       if (!power_on_) invalidate_diagnostic_sensors_();
       break;
 
@@ -324,11 +364,14 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
 
     case TLV::MODE:
       last_mode_ = static_cast<Mode>(v);
-      if (mode_select_ != nullptr) mode_select_->publish_state(mode_to_string(last_mode_));
+      if (fan_ != nullptr) fan_->publish_mode(last_mode_);
       break;
 
     case TLV::MIST_LEVEL:
-      if (mist_level_number_ != nullptr) mist_level_number_->publish_state(v);
+      if (fan_ != nullptr && v >= MIST_LEVEL_MIN && v <= MIST_LEVEL_MAX) {
+        fan_->speed = v;
+        fan_->publish_state();
+      }
       break;
 
     default:

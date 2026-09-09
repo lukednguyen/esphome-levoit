@@ -73,15 +73,52 @@ Common to both components:
 
 | Key | Entity type | Notes |
 |---|---|---|
-| `power` | switch | |
-| `mode` | select | Auto / Manual / Sleep |
-| `target_humidity` | number | 40-80 % |
-| `mist_level` | number | 1-9 |
+| `fan` | fan | power on/off, speed 1-9 (mist level), presets Auto / Manual / Sleep |
+| `target_humidity` | number | 40-80 %, only meaningful in Auto / Sleep |
 | `humidity` | sensor | current RH % |
 | `display` | switch | |
 | `reservoir` | binary sensor | tank attached |
 | `water` | binary sensor | water present |
 | `misting` | binary sensor | actively misting |
+
+#### Why a `fan` entity and not a Home Assistant `humidifier`?
+
+ESPHome has no `humidifier` platform, so an ESPHome device cannot publish
+entities in Home Assistant's `humidifier` domain — only the domains ESPHome
+implements (`fan`, `climate`, `switch`, `number`, `sensor`, ...). `climate`
+was rejected: it is modelled as a thermostat and would need temperature
+traits this device does not have. A `fan` maps cleanly onto what the
+humidifier actually is — on/off, nine mist levels and three modes — and gives
+one card in Home Assistant instead of three unrelated entities. If you want a
+`humidifier` card, wrap the fan, the target-humidity number and the humidity
+sensor in a Home Assistant template humidifier.
+
+#### Breaking changes
+
+The `power` (switch), `mode` (select) and `mist_level` (number) keys were
+removed in favour of the single `fan` entity:
+
+| Removed | Replacement |
+|---|---|
+| `switch.<device>_power` | `fan.<device>` on/off |
+| `select.<device>_mode` | `fan.<device>` preset mode |
+| `number.<device>_mist_level` | `fan.<device>` percentage / speed (1-9) |
+
+Automations and dashboards referencing the old entity IDs must be updated. If
+you specifically want a 1-9 slider back, add a template number that calls the
+component directly:
+
+```yaml
+number:
+  - platform: template
+    name: "Mist Level"
+    min_value: 1
+    max_value: 9
+    step: 1
+    optimistic: true
+    set_action:
+      - lambda: id(humidifier).send_mist_level((uint8_t) x, true);
+```
 
 ## Protocol coverage / TODO
 
