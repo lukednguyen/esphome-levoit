@@ -37,7 +37,7 @@ class PurifierFan : public fan::Fan, public Parented<AirPurifier> {
   void control(const fan::FanCall &call) override;
   void setup();
 
-  // Called from the RX path: the MCU is the source of truth for the mode.
+  // called from RX path; MCU is source of truth for mode
   void publish_mode(Mode mode);
 };
 

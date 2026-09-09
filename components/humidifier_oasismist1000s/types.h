@@ -45,7 +45,7 @@ enum class Offset : size_t {
 };
 
 // =============================================================================
-// Command Addresses (4 bytes each)
+// Command Addresses
 // =============================================================================
 
 using Address = std::array<uint8_t, 4>;
@@ -78,7 +78,7 @@ enum class TLV : uint8_t {
 // TLV Types - WiFi LED (ADDR_WIFI_LED)
 // =============================================================================
 
-// The MCU echoes these TLVs back on ADDR_WIFI_LED; we ignore the RX side.
+// MCU echoes these back on ADDR_WIFI_LED; RX side ignored
 enum class WifiLedTLV : uint8_t {
   STATUS = 0x01,
   BLINK_ON = 0x02,
@@ -135,9 +135,9 @@ inline constexpr uint8_t MIST_LEVEL_MAX = 9;
 // =============================================================================
 
 enum class WifiLedStatus : uint8_t {
-  OFF = 0x00,       // LED off (disconnected)
-  SOLID = 0x01,     // LED solid on (HA connected)
-  BLINKING = 0x02,  // LED blinking (WiFi only, connecting to HA)
+  OFF = 0x00,       // disconnected
+  SOLID = 0x01,     // HA connected
+  BLINKING = 0x02,  // WiFi only, connecting to HA
 };
 
 inline constexpr uint16_t WIFI_BLINK_MS = 500;

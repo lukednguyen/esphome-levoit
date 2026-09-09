@@ -3,3 +3,6 @@
 .pio/
 secrets.yaml
 __pycache__/
+
+# Local Claude Code config (agents live in ~/.claude)
+.claude/

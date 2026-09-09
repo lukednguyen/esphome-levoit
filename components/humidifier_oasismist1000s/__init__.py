@@ -34,7 +34,7 @@ CONF_FAN = "fan"
 CONF_DISPLAY = "display"
 CONF_TARGET_HUMIDITY = "target_humidity"
 
-# These must stay in sync with types.h (HUMIDITY_MIN/MAX).
+# keep in sync with types.h HUMIDITY_MIN/MAX
 HUMIDITY_MIN = 40
 HUMIDITY_MAX = 80
 
@@ -66,7 +66,7 @@ CONFIG_SCHEMA = (
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
                 icon="mdi:waves",
             ),
-            # Fan (restore_mode is included in fan_schema)
+            # Fan (restore_mode comes from fan_schema)
             cv.Optional(CONF_FAN): fan.fan_schema(
                 HumidifierFan,
                 icon="mdi:air-humidifier",

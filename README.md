@@ -5,9 +5,38 @@ Native ESPHome (UART) integrations for:
 - **Levoit Vital 200S air purifier** — component `air_purifier_vital200s`
 - **Levoit OasisMist 1000S humidifier** — component `humidifier_oasismist1000s`
 
-Both talk to the device's own MCU over the serial link that the stock Wi-Fi
+Both talk to the device's own MCU over the serial link that the built-in ESP32
 module used, so all control and sensor data stays local — no cloud, no Levoit
 app.
+
+## ⚠️ Before you flash: back up the stock firmware
+
+The built-in ESP32 module inside these devices is an ESP32-C3. This project
+reflashes that chip **in place** with ESPHome — it does not add a second board.
+Flashing
+ESPHome **overwrites Levoit's original firmware**, and Levoit does not publish
+it anywhere. If you do not save a copy first, there is **no way back** — the
+Levoit app, cloud, and Levoit OTA updates are gone permanently.
+
+> [!WARNING]
+> Read out and save the **entire flash** before you write anything to the chip.
+> Do this once, while the device still has stock firmware:
+>
+> ```bash
+> # ESP32-C3 is typically 4 MB (0x400000). Adjust if esptool reports otherwise.
+> esptool.py --port /dev/ttyUSB0 --baud 460800 read_flash 0x0 0x400000 \
+>   levoit-<model>-stock-firmware.bin
+> ```
+>
+> Verify the file is the expected size, then store it somewhere **off the
+> device** (not just on the machine you flashed from). To return to stock later:
+>
+> ```bash
+> esptool.py --port /dev/ttyUSB0 write_flash 0x0 levoit-<model>-stock-firmware.bin
+> ```
+>
+> Each unit's backup is unique (it contains that unit's Wi-Fi MAC and factory
+> calibration) — keep one `.bin` per device and label it.
 
 ## Quick start (ESPHome Builder / Home Assistant add-on)
 
@@ -41,7 +70,9 @@ pulls straight from GitHub.
 
 ## Hardware / wiring
 
-An ESP32-C3 replaces the stock Wi-Fi module inside the device. Serial link:
+The built-in ESP32 module inside the device is an ESP32-C3, reflashed in place
+with ESPHome (see the backup warning above). It reaches the main MCU over this
+serial link:
 
 | Signal | ESP32-C3 pin | Notes |
 |---|---|---|
@@ -93,20 +124,11 @@ one card in Home Assistant instead of three unrelated entities. If you want a
 `humidifier` card, wrap the fan, the target-humidity number and the humidity
 sensor in a Home Assistant template humidifier.
 
-#### Breaking changes
+#### Prefer a plain 1-9 mist-level slider?
 
-The `power` (switch), `mode` (select) and `mist_level` (number) keys were
-removed in favour of the single `fan` entity:
-
-| Removed | Replacement |
-|---|---|
-| `switch.<device>_power` | `fan.<device>` on/off |
-| `select.<device>_mode` | `fan.<device>` preset mode |
-| `number.<device>_mist_level` | `fan.<device>` percentage / speed (1-9) |
-
-Automations and dashboards referencing the old entity IDs must be updated. If
-you specifically want a 1-9 slider back, add a template number that calls the
-component directly:
+The fan exposes mist level as a percentage. If you would rather have an exact
+1-9 slider alongside the fan, add a template number that calls the component
+directly:
 
 ```yaml
 number:
@@ -122,9 +144,10 @@ number:
 
 ## Protocol coverage / TODO
 
-The UART protocol was reverse-engineered by capturing traffic between the stock
-Wi-Fi module and the device MCU. **The capture is incomplete — not every device
-function has been decoded.** Unknown frames are logged at `VERBOSE` as
+The UART protocol was reverse-engineered by capturing traffic between the
+built-in ESP32 module and the device MCU. **The capture is incomplete — not
+every device function has been decoded.** Unknown frames are logged at
+`VERBOSE` as
 `Unknown TLV 0x..` / `Unknown Status TLV 0x..`.
 
 ### Air purifier (`vital200s`) — not yet captured / incomplete
@@ -180,6 +203,14 @@ only makes the components listed in the user's `components:` array importable, s
 a shared `DEPENDENCIES` component would fail to load for anyone using the normal
 explicit list. The duplication is kept spelled identically instead. Please do not
 "helpfully" merge it.
+
+## AI assistance
+
+Parts of this repository — the component refactor, the sample configs, the CI
+workflow, and this README — were written with help from an AI coding assistant
+(Anthropic's Claude, via Claude Code). All changes were reviewed by a human
+before merging. The UART protocol details were reverse-engineered from real
+device captures, not generated.
 
 ## License
 

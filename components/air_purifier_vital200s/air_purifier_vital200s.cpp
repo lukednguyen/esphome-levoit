@@ -25,17 +25,17 @@ fan::FanTraits PurifierFan::get_traits() {
   traits.set_supported_speed_count(FAN_SPEED_COUNT);
   traits.set_direction(false);
   traits.set_oscillation(false);
-  // Preset modes live on the entity since ESPHome 2026.4.0; wire them in here.
+  // preset modes moved to the entity in 2026.4.0
   this->wire_preset_modes_(traits);
   return traits;
 }
 
 void PurifierFan::setup() {
-  // Preset modes must be registered before restore_state_(): FanRestoreState
-  // resolves the stored preset index against this list.
+  // must precede restore_state_(): FanRestoreState resolves the stored preset
+  // index against this list
   this->set_supported_preset_modes({MODE_AUTO, MODE_SLEEP, MODE_MANUAL});
 
-  // Restore state from flash and apply to MCU
+  // restore from flash and apply to MCU
   this->restore_state_();
 
   if (this->state) {
@@ -84,7 +84,6 @@ void AirPurifier::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Air Purifier...");
   rx_buffer_.reserve(RX_BUFFER_MAX);
 
-  // Setup fan restore
   if (fan_ != nullptr) {
     fan_->setup();
   }
@@ -114,7 +113,7 @@ void AirPurifier::dump_config() {
 void AirPurifier::read_uart_() {
   const uint32_t now = millis();
 
-  // Clear stale data
+  // drop stale data
   if (!rx_buffer_.empty() && (now - last_rx_time_) > RX_TIMEOUT_MS) {
     rx_buffer_.clear();
   }
@@ -124,19 +123,18 @@ void AirPurifier::read_uart_() {
     read_byte(&byte);
     last_rx_time_ = now;
 
-    // Sync to header
+    // sync to header
     if (rx_buffer_.empty() && byte != PACKET_HEADER) {
       continue;
     }
 
     rx_buffer_.push_back(byte);
 
-    // Wait for minimum header
+    // wait for minimum header
     if (rx_buffer_.size() < RX_MIN_HEADER_LEN) {
       continue;
     }
 
-    // Get packet type and payload length
     const auto type = static_cast<PacketType>(rx_buffer_[static_cast<size_t>(Offset::TYPE)]);
     const uint8_t payload_len = rx_buffer_[static_cast<size_t>(Offset::PAYLOAD_LEN)];
 
@@ -153,18 +151,16 @@ void AirPurifier::read_uart_() {
         continue;
     }
 
-    // Wait for complete packet
+    // wait for complete packet
     if (rx_buffer_.size() < expected_size) {
       continue;
     }
 
-    // Validate and process
     if (type == PacketType::STATUS) {
       const uint8_t received_checksum = rx_buffer_[static_cast<size_t>(Offset::CHECKSUM)];
       const uint8_t calculated_checksum = calc_checksum_(rx_buffer_.data(), expected_size);
 
-      // The Vital 200S MCU's outbound checksum formula is unverified on hardware.
-      // Warn on mismatch but still parse, so this stays a zero-behaviour-change diff.
+      // MCU outbound checksum formula unverified on hardware: warn but still parse
       if (received_checksum != calculated_checksum) {
         ESP_LOGW(TAG, "Checksum mismatch: 0x%02X != 0x%02X", received_checksum, calculated_checksum);
       }
@@ -174,7 +170,7 @@ void AirPurifier::read_uart_() {
     rx_buffer_.clear();
   }
 
-  // Prevent overflow
+  // prevent overflow
   if (rx_buffer_.size() > RX_BUFFER_MAX) {
     rx_buffer_.clear();
   }
