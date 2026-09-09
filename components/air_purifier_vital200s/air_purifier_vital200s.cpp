@@ -25,11 +25,6 @@ void LightDetectionSwitch::write_state(bool state) {
   parent_->send_light_detection(state);
 }
 
-// Filter reset (filter life not readable from MCU)
-// void FilterResetButton::press_action() {
-//   parent_->send_filter_reset();
-// }
-
 fan::FanTraits PurifierFan::get_traits() {
   fan::FanTraits traits;
   traits.set_speed(true);
@@ -112,7 +107,6 @@ void AirPurifier::dump_config() {
   LOG_SWITCH("  ", "Display", display_switch_);
   LOG_SWITCH("  ", "Display Lock", display_lock_switch_);
   LOG_SWITCH("  ", "Light Detection", light_detection_switch_);
-  // LOG_BUTTON("  ", "Filter Reset", filter_reset_button_);
 }
 
 // =============================================================================
@@ -140,7 +134,7 @@ void AirPurifier::read_uart_() {
     rx_buffer_.push_back(byte);
 
     // Wait for minimum header
-    if (rx_buffer_.size() < 6) {
+    if (rx_buffer_.size() < RX_MIN_HEADER_LEN) {
       continue;
     }
 
@@ -151,10 +145,10 @@ void AirPurifier::read_uart_() {
     size_t expected_size;
     switch (type) {
       case PacketType::STATUS:
-        expected_size = 6 + payload_len;
+        expected_size = RX_MIN_HEADER_LEN + payload_len;
         break;
       case PacketType::PING:
-        expected_size = 10;
+        expected_size = 10;  // PING frames are fixed-length
         break;
       default:
         rx_buffer_.clear();
@@ -166,9 +160,17 @@ void AirPurifier::read_uart_() {
       continue;
     }
 
-    // Process status packets
+    // Validate and process
     if (type == PacketType::STATUS) {
-      parse_packet_(rx_buffer_.data(), rx_buffer_.size());
+      const uint8_t received_checksum = rx_buffer_[static_cast<size_t>(Offset::CHECKSUM)];
+      const uint8_t calculated_checksum = calc_checksum_(rx_buffer_.data(), expected_size);
+
+      // The Vital 200S MCU's outbound checksum formula is unverified on hardware.
+      // Warn on mismatch but still parse, so this stays a zero-behaviour-change diff.
+      if (received_checksum != calculated_checksum) {
+        ESP_LOGW(TAG, "Checksum mismatch: 0x%02X != 0x%02X", received_checksum, calculated_checksum);
+      }
+      parse_packet_(rx_buffer_.data(), expected_size);
     }
 
     rx_buffer_.clear();
@@ -188,10 +190,7 @@ void AirPurifier::send_ping_() {
       static_cast<uint8_t>(PayloadLen::PING),
       0x00,
       0x00,  // checksum placeholder
-      0x02,
-      0x00,
-      0x55,
-      0x00
+      ADDR_STATUS[0], ADDR_STATUS[1], ADDR_STATUS[2], ADDR_STATUS[3]
   };
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
@@ -252,7 +251,8 @@ void AirPurifier::send_fan_speed(uint8_t speed) {
 
 void AirPurifier::send_display(bool on) {
   ESP_LOGI(TAG, "Display: %s", on ? "ON" : "OFF");
-  send_command_(ADDR_DISPLAY, on ? static_cast<uint8_t>(DisplayBrightness::ON) : static_cast<uint8_t>(DisplayBrightness::OFF));
+  const auto brightness = on ? DisplayBrightness::ON : DisplayBrightness::OFF;
+  send_command_(ADDR_DISPLAY, static_cast<uint8_t>(brightness));
 }
 
 void AirPurifier::send_display_lock(bool on) {
@@ -264,28 +264,6 @@ void AirPurifier::send_light_detection(bool on) {
   ESP_LOGI(TAG, "Light detection: %s", on ? "ON" : "OFF");
   send_command_(ADDR_LIGHT_DETECTION, on ? VALUE_ON : VALUE_OFF);
 }
-
-// Filter reset (filter life not readable from MCU)
-// void AirPurifier::send_filter_reset() {
-//   ESP_LOGI(TAG, "Resetting filter to 100%%");
-//
-//   uint8_t packet[] = {
-//       PACKET_HEADER,
-//       static_cast<uint8_t>(PacketType::STATUS),
-//       seq_++,
-//       static_cast<uint8_t>(PayloadLen::FILTER_RESET),
-//       0x00,
-//       0x00,  // checksum placeholder
-//       ADDR_FILTER_RESET[0], ADDR_FILTER_RESET[1], ADDR_FILTER_RESET[2], ADDR_FILTER_RESET[3],
-//       FILTER_RESET_ACTION, 0x00
-//   };
-//
-//   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
-//   write_array(packet, sizeof(packet));
-//   ESP_LOGI(TAG, "TX Filter reset: %s", format_hex_pretty(packet, sizeof(packet)).c_str());
-//
-//   send_ping_();
-// }
 
 void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
   WifiLedStatus status;
@@ -355,16 +333,17 @@ void AirPurifier::handle_timer_tlv_(uint8_t type, uint8_t len, const uint8_t *va
     return;
   }
 
-  const uint32_t seconds = value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24);
+  const uint32_t seconds = static_cast<uint32_t>(value[0]) | (static_cast<uint32_t>(value[1]) << 8) |
+                           (static_cast<uint32_t>(value[2]) << 16) | (static_cast<uint32_t>(value[3]) << 24);
 
   switch (static_cast<TimerTLV>(type)) {
     case TimerTLV::REMAINING:
-      ESP_LOGV(TAG, "Timer remaining: %lu seconds", (unsigned long)seconds);
+      ESP_LOGV(TAG, "Timer remaining: %lu seconds", static_cast<unsigned long>(seconds));
       break;
 
     case TimerTLV::TOTAL:
       if (seconds > 0) {
-        ESP_LOGW(TAG, "Timer %lu seconds detected, cancelling...", (unsigned long)seconds);
+        ESP_LOGW(TAG, "Timer %lu seconds detected, cancelling...", static_cast<unsigned long>(seconds));
         send_timer_cancel_();
       }
       break;
@@ -491,5 +470,5 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
   }
 }
 
-}  // namespace air_purifier
+}  // namespace air_purifier_vital200s
 }  // namespace esphome

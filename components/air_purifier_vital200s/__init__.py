@@ -22,9 +22,6 @@ DisplaySwitch = ns.class_("DisplaySwitch", switch.Switch, cg.Parented.template(A
 DisplayLockSwitch = ns.class_("DisplayLockSwitch", switch.Switch, cg.Parented.template(AirPurifier))
 LightDetectionSwitch = ns.class_("LightDetectionSwitch", switch.Switch, cg.Parented.template(AirPurifier))
 
-# Filter reset (commented out - filter life not readable from MCU)
-# FilterResetButton = ns.class_("FilterResetButton", button.Button, cg.Parented.template(AirPurifier))
-
 # Config keys
 CONF_PM25 = "pm25"
 CONF_FAN = "fan"
@@ -32,9 +29,6 @@ CONF_DISPLAY = "display"
 CONF_DISPLAY_LOCK = "display_lock"
 CONF_LIGHT_DETECTION = "light_detection"
 CONF_AIR_QUALITY = "air_quality"
-
-# Filter reset (commented out - filter life not readable from MCU)
-# CONF_FILTER_RESET = "filter_reset"
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -72,12 +66,6 @@ CONFIG_SCHEMA = (
                 icon="mdi:brightness-auto",
                 entity_category=ENTITY_CATEGORY_CONFIG,
             ),
-            # Filter reset (commented out - filter life not readable from MCU)
-            # cv.Optional(CONF_FILTER_RESET): button.button_schema(
-            #     FilterResetButton,
-            #     icon="mdi:refresh",
-            #     entity_category=ENTITY_CATEGORY_CONFIG,
-            # ),
         }
     )
     .extend(cv.polling_component_schema("250ms"))
@@ -114,8 +102,3 @@ async def to_code(config):
     if c := config.get(CONF_LIGHT_DETECTION):
         s = await switch.new_switch(c)
         cg.add(var.set_light_detection_switch(s))
-
-    # Filter reset (commented out - filter life not readable from MCU)
-    # if c := config.get(CONF_FILTER_RESET):
-    #     b = await button.new_button(c)
-    #     cg.add(var.set_filter_reset_button(b))

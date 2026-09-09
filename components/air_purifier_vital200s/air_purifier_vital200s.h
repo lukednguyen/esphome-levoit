@@ -1,12 +1,13 @@
 #pragma once
 
+#include <vector>
+
 #include "esphome/core/component.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/fan/fan.h"
 #include "esphome/components/switch/switch.h"
-// #include "esphome/components/button/button.h"  // filter reset not used
 #include "types.h"
 
 namespace esphome {
@@ -29,11 +30,6 @@ class DisplayLockSwitch : public switch_::Switch, public Parented<AirPurifier> {
 class LightDetectionSwitch : public switch_::Switch, public Parented<AirPurifier> {
   void write_state(bool state) override;
 };
-
-// Filter reset (filter life not readable from MCU)
-// class FilterResetButton : public button::Button, public Parented<AirPurifierComponent> {
-//   void press_action() override;
-// };
 
 class PurifierFan : public fan::Fan, public Parented<AirPurifier> {
  public:
@@ -76,12 +72,6 @@ class AirPurifier : public PollingComponent, public uart::UARTDevice {
     light_detection_switch_ = s;
   }
 
-  // Filter reset (filter life not readable from MCU)
-  // void set_filter_reset_button(FilterResetButton *b) {
-  //   b->set_parent(this);
-  //   filter_reset_button_ = b;
-  // }
-
   // Commands
   void send_power(bool on);
   void send_mode(Mode mode);
@@ -90,9 +80,6 @@ class AirPurifier : public PollingComponent, public uart::UARTDevice {
   void send_display_lock(bool on);
   void send_light_detection(bool on);
   void send_wifi_status(bool ha_connected, bool wifi_connected);
-
-  // Filter reset (filter life not readable from MCU)
-  // void send_filter_reset();
 
  private:
   // UART
@@ -121,9 +108,6 @@ class AirPurifier : public PollingComponent, public uart::UARTDevice {
   DisplaySwitch *display_switch_{nullptr};
   DisplayLockSwitch *display_lock_switch_{nullptr};
   LightDetectionSwitch *light_detection_switch_{nullptr};
-
-  // Filter reset (filter life not readable from MCU)
-  // FilterResetButton *filter_reset_button_{nullptr};
 
   // State
   std::vector<uint8_t> rx_buffer_;

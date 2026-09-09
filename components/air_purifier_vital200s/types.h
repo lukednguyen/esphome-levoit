@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <array>
+#include <string>
 
 namespace esphome {
 namespace air_purifier_vital200s {
@@ -12,6 +13,7 @@ namespace air_purifier_vital200s {
 // =============================================================================
 
 inline constexpr size_t RX_BUFFER_MAX = 128;
+inline constexpr size_t RX_MIN_HEADER_LEN = 6;
 inline constexpr size_t RX_MIN_PACKET_LEN = 10;
 inline constexpr uint32_t RX_TIMEOUT_MS = 100;
 
@@ -28,7 +30,6 @@ enum class PacketType : uint8_t {
 
 enum class PayloadLen : uint8_t {
   PING = 4,
-  // FILTER_RESET = 6,  // Commented out - filter life not readable from MCU
   COMMAND = 7,
   TIMER_CANCEL = 10,
   WIFI_LED = 18,
@@ -56,12 +57,16 @@ inline constexpr Address ADDR_STATUS          = {0x02, 0x00, 0x55, 0x00};
 inline constexpr Address ADDR_MODE            = {0x02, 0x02, 0x55, 0x00};
 inline constexpr Address ADDR_MANUAL_SPEED    = {0x02, 0x03, 0x55, 0x00};
 inline constexpr Address ADDR_DISPLAY         = {0x02, 0x04, 0x55, 0x00};
-// inline constexpr Address ADDR_FILTER_RESET = {0x02, 0x05, 0x55, 0x00};  // Commented out
 inline constexpr Address ADDR_LIGHT_DETECTION = {0x02, 0x11, 0x55, 0x00};
 inline constexpr Address ADDR_WIFI_LED        = {0x02, 0x18, 0x50, 0x00};
 inline constexpr Address ADDR_TIMER_SET       = {0x02, 0x19, 0x50, 0x00};
 inline constexpr Address ADDR_TIMER           = {0x02, 0x1B, 0x50, 0x00};
 inline constexpr Address ADDR_DISPLAY_LOCK    = {0x02, 0x40, 0x51, 0x00};
+
+// Protocol notes (observed, not implemented):
+//   ADDR_FILTER_RESET  = {0x02, 0x05, 0x55, 0x00}, PayloadLen 6, action byte 0x03.
+//   Filter reset is write-only: the MCU never reports filter life, so there is nothing
+//   sensible to expose in Home Assistant. Left unimplemented on purpose.
 
 // =============================================================================
 // TLV Types - Status Response
@@ -92,6 +97,7 @@ enum class TimerTLV : uint8_t {
 // TLV Types - WiFi LED (ADDR_WIFI_LED)
 // =============================================================================
 
+// The MCU echoes these TLVs back on ADDR_WIFI_LED; we ignore the RX side.
 enum class WifiLedTLV : uint8_t {
   STATUS = 0x01,
   BLINK_ON = 0x02,
@@ -121,7 +127,7 @@ inline constexpr const char *mode_to_string(Mode mode) {
   }
 }
 
-inline constexpr Mode string_to_mode(const std::string &str) {
+inline Mode string_to_mode(const std::string &str) {
   if (str == MODE_MANUAL) return Mode::MANUAL;
   if (str == MODE_SLEEP)  return Mode::SLEEP;
   return Mode::AUTO;
@@ -177,9 +183,6 @@ inline constexpr uint8_t FAN_SPEED_COUNT = 4;
 
 inline constexpr uint8_t VALUE_OFF = 0x00;
 inline constexpr uint8_t VALUE_ON = 0x01;
-
-// Filter (commented out - filter life not readable from MCU)
-// inline constexpr uint8_t FILTER_RESET_ACTION = 0x03;
 
 enum class DisplayBrightness : uint8_t {
   OFF = 0x00,
