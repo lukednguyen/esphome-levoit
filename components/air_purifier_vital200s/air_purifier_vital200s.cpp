@@ -94,6 +94,7 @@ void AirPurifier::dump_config() {
   ESP_LOGCONFIG(TAG, "Air Purifier:");
   ESP_LOGCONFIG(TAG, "  Update interval: %.1fs", get_update_interval() / 1000.0f);
   ESP_LOGCONFIG(TAG, "  Cancel device timer: %s", YESNO(cancel_device_timer_));
+  ESP_LOGCONFIG(TAG, "  WiFi status LED: %s", YESNO(wifi_status_led_));
   LOG_SENSOR("  ", "PM2.5", pm25_sensor_);
   LOG_TEXT_SENSOR("  ", "Air Quality", air_quality_sensor_);
   if (fan_ != nullptr) {
@@ -255,20 +256,28 @@ void AirPurifier::send_light_detection(bool on) {
 }
 
 void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
-  WifiLedStatus status;
+  if (!wifi_status_led_) return;
+
+  // default = WiFi up, no HA; the other two states adjust from here
+  WifiLedStatus status = WifiLedStatus::BLINKING;
+  uint16_t on_ms = WIFI_BLINK_SLOW_ON_MS;
+  uint16_t off_ms = WIFI_BLINK_SLOW_OFF_MS;
+
   if (ha_connected) {
     status = WifiLedStatus::SOLID;
     ESP_LOGI(TAG, "WiFi LED: solid (HA connected)");
   } else if (wifi_connected) {
-    status = WifiLedStatus::BLINKING;
-    ESP_LOGI(TAG, "WiFi LED: blinking (WiFi only)");
+    ESP_LOGI(TAG, "WiFi LED: slow blink (WiFi only)");
   } else {
-    status = WifiLedStatus::OFF;
-    ESP_LOGI(TAG, "WiFi LED: off (disconnected)");
+    on_ms = WIFI_BLINK_FAST_ON_MS;
+    off_ms = WIFI_BLINK_FAST_OFF_MS;
+    ESP_LOGI(TAG, "WiFi LED: fast blink (no WiFi)");
   }
 
-  constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
-  constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
+  const uint8_t on_lo = static_cast<uint8_t>(on_ms & 0xFF);
+  const uint8_t on_hi = static_cast<uint8_t>(on_ms >> 8);
+  const uint8_t off_lo = static_cast<uint8_t>(off_ms & 0xFF);
+  const uint8_t off_hi = static_cast<uint8_t>(off_ms >> 8);
 
   // clang-format off
   uint8_t packet[] = {
@@ -277,8 +286,8 @@ void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
       0x00, 0x00,                                               // reserved, checksum placeholder
       ADDR_WIFI_LED[0], ADDR_WIFI_LED[1], ADDR_WIFI_LED[2], ADDR_WIFI_LED[3],
       static_cast<uint8_t>(WifiLedTLV::STATUS), 0x01, static_cast<uint8_t>(status),
-      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
+      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, on_lo, on_hi,
+      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, off_lo, off_hi,
       static_cast<uint8_t>(WifiLedTLV::RESET_FLAG), 0x01, 0x00,
   };
   // clang-format on

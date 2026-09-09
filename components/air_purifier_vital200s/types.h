@@ -161,12 +161,16 @@ inline constexpr uint8_t DISPLAY_ON_BRIGHTNESS = 0x64;  // display takes a brigh
 // =============================================================================
 
 enum class WifiLedStatus : uint8_t {
-  OFF = 0x00,       // disconnected
+  OFF = 0x00,       // protocol only; never sent
   SOLID = 0x01,     // HA connected
-  BLINKING = 0x02,  // WiFi only, connecting to HA
+  BLINKING = 0x02,  // WiFi only (slow) or no WiFi (fast)
 };
 
-inline constexpr uint16_t WIFI_BLINK_MS = 500;
+// fast = no WiFi (searching), slow = WiFi up but no HA
+inline constexpr uint16_t WIFI_BLINK_FAST_ON_MS = 200;
+inline constexpr uint16_t WIFI_BLINK_FAST_OFF_MS = 200;
+inline constexpr uint16_t WIFI_BLINK_SLOW_ON_MS = 900;
+inline constexpr uint16_t WIFI_BLINK_SLOW_OFF_MS = 300;
 
 }  // namespace air_purifier_vital200s
 }  // namespace esphome
