@@ -123,20 +123,11 @@ one card in Home Assistant instead of three unrelated entities. If you want a
 `humidifier` card, wrap the fan, the target-humidity number and the humidity
 sensor in a Home Assistant template humidifier.
 
-#### Breaking changes
+#### Prefer a plain 1-9 mist-level slider?
 
-The `power` (switch), `mode` (select) and `mist_level` (number) keys were
-removed in favour of the single `fan` entity:
-
-| Removed | Replacement |
-|---|---|
-| `switch.<device>_power` | `fan.<device>` on/off |
-| `select.<device>_mode` | `fan.<device>` preset mode |
-| `number.<device>_mist_level` | `fan.<device>` percentage / speed (1-9) |
-
-Automations and dashboards referencing the old entity IDs must be updated. If
-you specifically want a 1-9 slider back, add a template number that calls the
-component directly:
+The fan exposes mist level as a percentage. If you would rather have an exact
+1-9 slider alongside the fan, add a template number that calls the component
+directly:
 
 ```yaml
 number:
