@@ -116,7 +116,6 @@ class AirPurifier : public PollingComponent, public uart::UARTDevice {
   std::vector<uint8_t> rx_buffer_;
   uint32_t last_rx_time_{0};
   uint8_t seq_{0};
-  Mode last_mode_{Mode::AUTO};
 };
 
 }  // namespace air_purifier_vital200s

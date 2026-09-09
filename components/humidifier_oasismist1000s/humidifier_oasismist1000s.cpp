@@ -238,20 +238,16 @@ void Humidifier::send_target_humidity(uint8_t humidity, bool auto_switch_mode) {
 
 void Humidifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
   WifiLedStatus status;
-  const char *status_str;
-
   if (ha_connected) {
     status = WifiLedStatus::SOLID;
-    status_str = "solid (HA connected)";
+    ESP_LOGI(TAG, "WiFi LED: solid (HA connected)");
   } else if (wifi_connected) {
     status = WifiLedStatus::BLINKING;
-    status_str = "blinking (WiFi only)";
+    ESP_LOGI(TAG, "WiFi LED: blinking (WiFi only)");
   } else {
     status = WifiLedStatus::OFF;
-    status_str = "off (disconnected)";
+    ESP_LOGI(TAG, "WiFi LED: off (disconnected)");
   }
-
-  ESP_LOGI(TAG, "WiFi LED: %s", status_str);
 
   constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
   constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
@@ -278,7 +274,7 @@ void Humidifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
 // =============================================================================
 
 void Humidifier::parse_packet_(const uint8_t *data, size_t len) {
-  if (len < RX_MIN_PACKET_LEN) return;
+  if (len < static_cast<size_t>(Offset::TLV_START)) return;
 
   if (match_address_(data, ADDR_STATUS)) {
     parse_tlvs_(data, len, [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_status_tlv_(t, l, v); });

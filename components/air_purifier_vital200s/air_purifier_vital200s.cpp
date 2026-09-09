@@ -255,20 +255,16 @@ void AirPurifier::send_light_detection(bool on) {
 
 void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
   WifiLedStatus status;
-  const char *status_str;
-
   if (ha_connected) {
     status = WifiLedStatus::SOLID;
-    status_str = "solid (HA connected)";
+    ESP_LOGI(TAG, "WiFi LED: solid (HA connected)");
   } else if (wifi_connected) {
     status = WifiLedStatus::BLINKING;
-    status_str = "blinking (WiFi only)";
+    ESP_LOGI(TAG, "WiFi LED: blinking (WiFi only)");
   } else {
     status = WifiLedStatus::OFF;
-    status_str = "off (disconnected)";
+    ESP_LOGI(TAG, "WiFi LED: off (disconnected)");
   }
-
-  ESP_LOGI(TAG, "WiFi LED: %s", status_str);
 
   constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
   constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
@@ -345,14 +341,10 @@ void AirPurifier::handle_timer_tlv_(uint8_t type, uint8_t len, const uint8_t *va
 // =============================================================================
 
 void AirPurifier::parse_packet_(const uint8_t *data, size_t len) {
-  if (len < RX_MIN_PACKET_LEN) {
-    return;
-  }
-
-  if (match_address_(data, ADDR_STATUS) && len >= static_cast<size_t>(Offset::TLV_START_STATUS)) {
+  if (len >= static_cast<size_t>(Offset::TLV_START_STATUS) && match_address_(data, ADDR_STATUS)) {
     parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_STATUS),
                 [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_status_tlv_(t, l, v); });
-  } else if (match_address_(data, ADDR_TIMER) && len >= static_cast<size_t>(Offset::TLV_START_TIMER)) {
+  } else if (len >= static_cast<size_t>(Offset::TLV_START_TIMER) && match_address_(data, ADDR_TIMER)) {
     parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_TIMER),
                 [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_timer_tlv_(t, l, v); });
   }
@@ -388,11 +380,12 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
       ESP_LOGD(TAG, "Power: %s", v != VALUE_OFF ? "ON" : "OFF");
       break;
 
-    case TLV::MODE:
-      last_mode_ = static_cast<Mode>(v);
-      if (fan_ != nullptr) fan_->publish_mode(last_mode_);
-      ESP_LOGD(TAG, "Mode: %s", mode_to_string(last_mode_));
+    case TLV::MODE: {
+      const Mode mode = static_cast<Mode>(v);
+      if (fan_ != nullptr) fan_->publish_mode(mode);
+      ESP_LOGD(TAG, "Mode: %s", mode_to_string(mode));
       break;
+    }
 
     case TLV::SPEED:
       if (v >= 1 && v <= FAN_SPEED_COUNT) {
@@ -402,10 +395,6 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
         }
         ESP_LOGD(TAG, "Speed: %d", v);
       }
-      break;
-
-    case TLV::DISPLAY_CURRENT:
-      ESP_LOGV(TAG, "Display current: %s", v != VALUE_OFF ? "ON" : "OFF");
       break;
 
     case TLV::DISPLAY_SAVED:

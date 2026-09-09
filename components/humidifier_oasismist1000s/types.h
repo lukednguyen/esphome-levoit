@@ -14,7 +14,6 @@ namespace humidifier_oasismist1000s {
 
 inline constexpr size_t RX_BUFFER_MAX = 128;
 inline constexpr size_t RX_MIN_HEADER_LEN = 6;
-inline constexpr size_t RX_MIN_PACKET_LEN = 10;
 inline constexpr uint32_t RX_TIMEOUT_MS = 100;
 
 // =============================================================================

@@ -14,7 +14,6 @@ namespace air_purifier_vital200s {
 
 inline constexpr size_t RX_BUFFER_MAX = 128;
 inline constexpr size_t RX_MIN_HEADER_LEN = 6;
-inline constexpr size_t RX_MIN_PACKET_LEN = 10;
 inline constexpr uint32_t RX_TIMEOUT_MS = 100;
 
 // =============================================================================
@@ -75,7 +74,7 @@ enum class TLV : uint8_t {
   POWER = 0x02,
   MODE = 0x03,
   SPEED = 0x04,
-  DISPLAY_CURRENT = 0x06,
+  // 0x06 = live display brightness; ignored, DISPLAY_SAVED is the switch state
   DISPLAY_SAVED = 0x07,
   AIR_QUALITY = 0x09,
   PM25 = 0x0B,
