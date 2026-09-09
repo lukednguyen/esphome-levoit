@@ -14,7 +14,6 @@ namespace air_purifier_vital200s {
 
 inline constexpr size_t RX_BUFFER_MAX = 128;
 inline constexpr size_t RX_MIN_HEADER_LEN = 6;
-inline constexpr size_t RX_MIN_PACKET_LEN = 10;
 inline constexpr uint32_t RX_TIMEOUT_MS = 100;
 
 // =============================================================================
@@ -75,7 +74,7 @@ enum class TLV : uint8_t {
   POWER = 0x02,
   MODE = 0x03,
   SPEED = 0x04,
-  DISPLAY_CURRENT = 0x06,
+  // 0x06 = live display brightness; ignored, DISPLAY_SAVED is the switch state
   DISPLAY_SAVED = 0x07,
   AIR_QUALITY = 0x09,
   PM25 = 0x0B,
@@ -118,15 +117,12 @@ inline constexpr const char *MODE_AUTO = "Auto";
 inline constexpr const char *MODE_MANUAL = "Manual";
 inline constexpr const char *MODE_SLEEP = "Sleep";
 
+// index = Mode value: MANUAL=0, SLEEP=1, AUTO=2
+inline constexpr std::array<const char *, 3> MODE_NAMES = {MODE_MANUAL, MODE_SLEEP, MODE_AUTO};
+
 inline constexpr const char *mode_to_string(Mode mode) {
-  switch (mode) {
-    case Mode::MANUAL:
-      return MODE_MANUAL;
-    case Mode::SLEEP:
-      return MODE_SLEEP;
-    default:
-      return MODE_AUTO;
-  }
+  const size_t i = static_cast<size_t>(mode);
+  return i < MODE_NAMES.size() ? MODE_NAMES[i] : MODE_AUTO;
 }
 
 inline Mode string_to_mode(const std::string &str) {
@@ -139,49 +135,18 @@ inline Mode string_to_mode(const std::string &str) {
 // Air Quality
 // =============================================================================
 
-enum class AirQuality : uint8_t {
-  UNKNOWN = 0,
-  VERY_GOOD = 1,
-  GOOD = 2,
-  MODERATE = 3,
-  BAD = 4,
-};
+// index = MCU air-quality value; 0 doubles as the out-of-range fallback
+inline constexpr std::array<const char *, 5> AIR_QUALITY_NAMES = {"Unknown", "Very Good", "Good", "Moderate", "Bad"};
 
-inline constexpr const char *AIR_QUALITY_UNKNOWN = "Unknown";
-inline constexpr const char *AIR_QUALITY_VERY_GOOD = "Very Good";
-inline constexpr const char *AIR_QUALITY_GOOD = "Good";
-inline constexpr const char *AIR_QUALITY_MODERATE = "Moderate";
-inline constexpr const char *AIR_QUALITY_BAD = "Bad";
-
-inline constexpr const char *air_quality_to_string(AirQuality quality) {
-  switch (quality) {
-    case AirQuality::VERY_GOOD:
-      return AIR_QUALITY_VERY_GOOD;
-    case AirQuality::GOOD:
-      return AIR_QUALITY_GOOD;
-    case AirQuality::MODERATE:
-      return AIR_QUALITY_MODERATE;
-    case AirQuality::BAD:
-      return AIR_QUALITY_BAD;
-    default:
-      return AIR_QUALITY_UNKNOWN;
-  }
-}
-
-inline constexpr AirQuality uint8_to_air_quality(uint8_t value) {
-  if (value >= static_cast<uint8_t>(AirQuality::VERY_GOOD) && value <= static_cast<uint8_t>(AirQuality::BAD)) {
-    return static_cast<AirQuality>(value);
-  }
-  return AirQuality::UNKNOWN;
+inline constexpr const char *air_quality_to_string(uint8_t value) {
+  return value < AIR_QUALITY_NAMES.size() ? AIR_QUALITY_NAMES[value] : AIR_QUALITY_NAMES[0];
 }
 
 // =============================================================================
 // Fan Speed
 // =============================================================================
 
-inline constexpr uint8_t FAN_SPEED_MIN = 1;
-inline constexpr uint8_t FAN_SPEED_MAX = 4;
-inline constexpr uint8_t FAN_SPEED_COUNT = 4;
+inline constexpr uint8_t FAN_SPEED_COUNT = 4;  // speeds are 1..4
 
 // =============================================================================
 // Values
@@ -189,23 +154,23 @@ inline constexpr uint8_t FAN_SPEED_COUNT = 4;
 
 inline constexpr uint8_t VALUE_OFF = 0x00;
 inline constexpr uint8_t VALUE_ON = 0x01;
-
-enum class DisplayBrightness : uint8_t {
-  OFF = 0x00,
-  ON = 0x64,
-};
+inline constexpr uint8_t DISPLAY_ON_BRIGHTNESS = 0x64;  // display takes a brightness byte, not VALUE_ON
 
 // =============================================================================
 // WiFi LED
 // =============================================================================
 
 enum class WifiLedStatus : uint8_t {
-  OFF = 0x00,       // disconnected
+  OFF = 0x00,       // protocol only; never sent
   SOLID = 0x01,     // HA connected
-  BLINKING = 0x02,  // WiFi only, connecting to HA
+  BLINKING = 0x02,  // WiFi only (slow) or no WiFi (fast)
 };
 
-inline constexpr uint16_t WIFI_BLINK_MS = 500;
+// fast = no WiFi (searching), slow = WiFi up but no HA
+inline constexpr uint16_t WIFI_BLINK_FAST_ON_MS = 200;
+inline constexpr uint16_t WIFI_BLINK_FAST_OFF_MS = 200;
+inline constexpr uint16_t WIFI_BLINK_SLOW_ON_MS = 900;
+inline constexpr uint16_t WIFI_BLINK_SLOW_OFF_MS = 300;
 
 }  // namespace air_purifier_vital200s
 }  // namespace esphome

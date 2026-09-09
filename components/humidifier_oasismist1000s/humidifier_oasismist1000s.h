@@ -74,6 +74,9 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
     target_humidity_number_ = n;
   }
 
+  // Options
+  void set_wifi_status_led(bool enable) { wifi_status_led_ = enable; }
+
   // Commands
   void send_power(bool on);
   void send_display(bool on);
@@ -116,6 +119,7 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   uint8_t seq_{0};
   Mode last_mode_{Mode::AUTO};
   bool power_on_{false};
+  bool wifi_status_led_{false};
 };
 
 }  // namespace humidifier_oasismist1000s

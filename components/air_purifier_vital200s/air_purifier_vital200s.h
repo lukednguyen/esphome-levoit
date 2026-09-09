@@ -75,6 +75,10 @@ class AirPurifier : public PollingComponent, public uart::UARTDevice {
     light_detection_switch_ = s;
   }
 
+  // Options
+  void set_cancel_device_timer(bool enable) { cancel_device_timer_ = enable; }
+  void set_wifi_status_led(bool enable) { wifi_status_led_ = enable; }
+
   // Commands
   void send_power(bool on);
   void send_mode(Mode mode);
@@ -116,7 +120,8 @@ class AirPurifier : public PollingComponent, public uart::UARTDevice {
   std::vector<uint8_t> rx_buffer_;
   uint32_t last_rx_time_{0};
   uint8_t seq_{0};
-  Mode last_mode_{Mode::AUTO};
+  bool cancel_device_timer_{false};
+  bool wifi_status_led_{false};
 };
 
 }  // namespace air_purifier_vital200s

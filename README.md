@@ -88,6 +88,14 @@ Common to both components:
 |---|---|---|
 | `uart_id` | — | ID of the `uart:` bus |
 | `update_interval` | `250ms` | MCU poll interval |
+| `wifi_status_led` | `false` | Drive the device's front LED from connection state (see below) |
+
+With `wifi_status_led: true` the front LED shows **solid** when Home Assistant
+is connected, a **slow blink** when Wi-Fi is up but Home Assistant is not, and a
+**fast blink** while searching for Wi-Fi. The key only arms the feature — the
+`update_wifi_led` script in the sample YAMLs is what actually calls it, so copy
+both. With the key off (the default) the component never sends the LED command
+and the LED keeps whatever state the device's MCU gave it.
 
 ### `air_purifier_vital200s`
 
@@ -99,6 +107,12 @@ Common to both components:
 | `display` | switch | panel brightness on/off |
 | `display_lock` | switch | child lock |
 | `light_detection` | switch | auto-dim in the dark |
+
+Plus one behaviour option:
+
+| Key | Default | Description |
+|---|---|---|
+| `cancel_device_timer` | `false` | Cancel any timer started from the device's own timer button, so the purifier never switches itself off |
 
 ### `humidifier_oasismist1000s`
 
@@ -152,9 +166,10 @@ every device function has been decoded.** Unknown frames are logged at
 
 ### Air purifier (`vital200s`) — not yet captured / incomplete
 
-- **Timer:** only "cancel timer" is transmitted. There is no "set timer to N
-  hours" TX, and the timer-remaining value reported by the MCU is logged only,
-  not exposed as an entity.
+- **Timer:** only "cancel timer" is transmitted, and only when
+  `cancel_device_timer:` is enabled. There is no "set timer to N hours" TX, and
+  the timer-remaining value reported by the MCU is logged only, not exposed as an
+  entity.
 - **Filter life:** not readable back from the MCU with current knowledge. The
   filter-reset command was partially reverse-engineered but is left
   unimplemented (see the protocol-notes comment in `types.h`).

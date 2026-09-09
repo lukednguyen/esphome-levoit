@@ -63,11 +63,8 @@ void PurifierFan::control(const fan::FanCall &call) {
   }
 
   if (call.get_speed().has_value()) {
-    const int speed = *call.get_speed();
-    if (speed >= FAN_SPEED_MIN && speed <= FAN_SPEED_MAX) {
-      parent_->send_mode(Mode::MANUAL);
-      parent_->send_fan_speed(static_cast<uint8_t>(speed));
-    }
+    parent_->send_mode(Mode::MANUAL);
+    parent_->send_fan_speed(static_cast<uint8_t>(*call.get_speed()));
   }
 }
 
@@ -96,6 +93,8 @@ void AirPurifier::update() { send_ping_(); }
 void AirPurifier::dump_config() {
   ESP_LOGCONFIG(TAG, "Air Purifier:");
   ESP_LOGCONFIG(TAG, "  Update interval: %.1fs", get_update_interval() / 1000.0f);
+  ESP_LOGCONFIG(TAG, "  Cancel device timer: %s", YESNO(cancel_device_timer_));
+  ESP_LOGCONFIG(TAG, "  WiFi status LED: %s", YESNO(wifi_status_led_));
   LOG_SENSOR("  ", "PM2.5", pm25_sensor_);
   LOG_TEXT_SENSOR("  ", "Air Quality", air_quality_sensor_);
   if (fan_ != nullptr) {
@@ -236,15 +235,14 @@ void AirPurifier::send_mode(Mode mode) {
 }
 
 void AirPurifier::send_fan_speed(uint8_t speed) {
-  speed = std::clamp(speed, FAN_SPEED_MIN, FAN_SPEED_MAX);
+  speed = std::clamp<uint8_t>(speed, 1, FAN_SPEED_COUNT);
   ESP_LOGI(TAG, "Fan speed: %d", speed);
   send_command_(ADDR_MANUAL_SPEED, speed);
 }
 
 void AirPurifier::send_display(bool on) {
   ESP_LOGI(TAG, "Display: %s", on ? "ON" : "OFF");
-  const auto brightness = on ? DisplayBrightness::ON : DisplayBrightness::OFF;
-  send_command_(ADDR_DISPLAY, static_cast<uint8_t>(brightness));
+  send_command_(ADDR_DISPLAY, on ? DISPLAY_ON_BRIGHTNESS : VALUE_OFF);
 }
 
 void AirPurifier::send_display_lock(bool on) {
@@ -258,24 +256,28 @@ void AirPurifier::send_light_detection(bool on) {
 }
 
 void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
-  WifiLedStatus status;
-  const char *status_str;
+  if (!wifi_status_led_) return;
+
+  // default = WiFi up, no HA; the other two states adjust from here
+  WifiLedStatus status = WifiLedStatus::BLINKING;
+  uint16_t on_ms = WIFI_BLINK_SLOW_ON_MS;
+  uint16_t off_ms = WIFI_BLINK_SLOW_OFF_MS;
 
   if (ha_connected) {
     status = WifiLedStatus::SOLID;
-    status_str = "solid (HA connected)";
+    ESP_LOGI(TAG, "WiFi LED: solid (HA connected)");
   } else if (wifi_connected) {
-    status = WifiLedStatus::BLINKING;
-    status_str = "blinking (WiFi only)";
+    ESP_LOGI(TAG, "WiFi LED: slow blink (WiFi only)");
   } else {
-    status = WifiLedStatus::OFF;
-    status_str = "off (disconnected)";
+    on_ms = WIFI_BLINK_FAST_ON_MS;
+    off_ms = WIFI_BLINK_FAST_OFF_MS;
+    ESP_LOGI(TAG, "WiFi LED: fast blink (no WiFi)");
   }
 
-  ESP_LOGI(TAG, "WiFi LED: %s", status_str);
-
-  constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
-  constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
+  const uint8_t on_lo = static_cast<uint8_t>(on_ms & 0xFF);
+  const uint8_t on_hi = static_cast<uint8_t>(on_ms >> 8);
+  const uint8_t off_lo = static_cast<uint8_t>(off_ms & 0xFF);
+  const uint8_t off_hi = static_cast<uint8_t>(off_ms >> 8);
 
   // clang-format off
   uint8_t packet[] = {
@@ -284,8 +286,8 @@ void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
       0x00, 0x00,                                               // reserved, checksum placeholder
       ADDR_WIFI_LED[0], ADDR_WIFI_LED[1], ADDR_WIFI_LED[2], ADDR_WIFI_LED[3],
       static_cast<uint8_t>(WifiLedTLV::STATUS), 0x01, static_cast<uint8_t>(status),
-      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
+      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, on_lo, on_hi,
+      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, off_lo, off_hi,
       static_cast<uint8_t>(WifiLedTLV::RESET_FLAG), 0x01, 0x00,
   };
   // clang-format on
@@ -332,7 +334,7 @@ void AirPurifier::handle_timer_tlv_(uint8_t type, uint8_t len, const uint8_t *va
       break;
 
     case TimerTLV::TOTAL:
-      if (seconds > 0) {
+      if (cancel_device_timer_ && seconds > 0) {
         ESP_LOGW(TAG, "Timer %lu seconds detected, cancelling...", static_cast<unsigned long>(seconds));
         send_timer_cancel_();
       }
@@ -349,14 +351,10 @@ void AirPurifier::handle_timer_tlv_(uint8_t type, uint8_t len, const uint8_t *va
 // =============================================================================
 
 void AirPurifier::parse_packet_(const uint8_t *data, size_t len) {
-  if (len < RX_MIN_PACKET_LEN) {
-    return;
-  }
-
-  if (match_address_(data, ADDR_STATUS) && len >= static_cast<size_t>(Offset::TLV_START_STATUS)) {
+  if (len >= static_cast<size_t>(Offset::TLV_START_STATUS) && match_address_(data, ADDR_STATUS)) {
     parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_STATUS),
                 [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_status_tlv_(t, l, v); });
-  } else if (match_address_(data, ADDR_TIMER) && len >= static_cast<size_t>(Offset::TLV_START_TIMER)) {
+  } else if (len >= static_cast<size_t>(Offset::TLV_START_TIMER) && match_address_(data, ADDR_TIMER)) {
     parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_TIMER),
                 [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_timer_tlv_(t, l, v); });
   }
@@ -392,24 +390,21 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
       ESP_LOGD(TAG, "Power: %s", v != VALUE_OFF ? "ON" : "OFF");
       break;
 
-    case TLV::MODE:
-      last_mode_ = static_cast<Mode>(v);
-      if (fan_ != nullptr) fan_->publish_mode(last_mode_);
-      ESP_LOGD(TAG, "Mode: %s", mode_to_string(last_mode_));
+    case TLV::MODE: {
+      const Mode mode = static_cast<Mode>(v);
+      if (fan_ != nullptr) fan_->publish_mode(mode);
+      ESP_LOGD(TAG, "Mode: %s", mode_to_string(mode));
       break;
+    }
 
     case TLV::SPEED:
-      if (v >= FAN_SPEED_MIN && v <= FAN_SPEED_MAX) {
+      if (v >= 1 && v <= FAN_SPEED_COUNT) {
         if (fan_ != nullptr) {
           fan_->speed = v;
           fan_->publish_state();
         }
         ESP_LOGD(TAG, "Speed: %d", v);
       }
-      break;
-
-    case TLV::DISPLAY_CURRENT:
-      ESP_LOGV(TAG, "Display current: %s", v != VALUE_OFF ? "ON" : "OFF");
       break;
 
     case TLV::DISPLAY_SAVED:
@@ -421,9 +416,9 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
 
     case TLV::AIR_QUALITY:
       if (air_quality_sensor_ != nullptr) {
-        const auto quality = uint8_to_air_quality(v);
-        air_quality_sensor_->publish_state(air_quality_to_string(quality));
-        ESP_LOGD(TAG, "Air quality: %s", air_quality_to_string(quality));
+        const char *quality = air_quality_to_string(v);
+        air_quality_sensor_->publish_state(quality);
+        ESP_LOGD(TAG, "Air quality: %s", quality);
       }
       break;
 

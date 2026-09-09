@@ -14,7 +14,6 @@ namespace humidifier_oasismist1000s {
 
 inline constexpr size_t RX_BUFFER_MAX = 128;
 inline constexpr size_t RX_MIN_HEADER_LEN = 6;
-inline constexpr size_t RX_MIN_PACKET_LEN = 10;
 inline constexpr uint32_t RX_TIMEOUT_MS = 100;
 
 // =============================================================================
@@ -100,15 +99,12 @@ inline constexpr const char *MODE_AUTO = "Auto";
 inline constexpr const char *MODE_MANUAL = "Manual";
 inline constexpr const char *MODE_SLEEP = "Sleep";
 
+// index = Mode value: AUTO=0, MANUAL=1, SLEEP=2
+inline constexpr std::array<const char *, 3> MODE_NAMES = {MODE_AUTO, MODE_MANUAL, MODE_SLEEP};
+
 inline constexpr const char *mode_to_string(Mode mode) {
-  switch (mode) {
-    case Mode::MANUAL:
-      return MODE_MANUAL;
-    case Mode::SLEEP:
-      return MODE_SLEEP;
-    default:
-      return MODE_AUTO;
-  }
+  const size_t i = static_cast<size_t>(mode);
+  return i < MODE_NAMES.size() ? MODE_NAMES[i] : MODE_AUTO;
 }
 
 inline Mode string_to_mode(const std::string &str) {
@@ -123,7 +119,7 @@ inline Mode string_to_mode(const std::string &str) {
 
 inline constexpr uint8_t VALUE_OFF = 0x00;
 inline constexpr uint8_t VALUE_ON = 0x01;
-inline constexpr uint8_t VALUE_ACTIVE = 0x64;
+inline constexpr uint8_t DISPLAY_ON_BRIGHTNESS = 0x64;  // display takes a brightness byte, not VALUE_ON
 
 inline constexpr uint8_t HUMIDITY_MIN = 40;
 inline constexpr uint8_t HUMIDITY_MAX = 80;
@@ -135,12 +131,16 @@ inline constexpr uint8_t MIST_LEVEL_MAX = 9;
 // =============================================================================
 
 enum class WifiLedStatus : uint8_t {
-  OFF = 0x00,       // disconnected
+  OFF = 0x00,       // protocol only; never sent
   SOLID = 0x01,     // HA connected
-  BLINKING = 0x02,  // WiFi only, connecting to HA
+  BLINKING = 0x02,  // WiFi only (slow) or no WiFi (fast)
 };
 
-inline constexpr uint16_t WIFI_BLINK_MS = 500;
+// fast = no WiFi (searching), slow = WiFi up but no HA
+inline constexpr uint16_t WIFI_BLINK_FAST_ON_MS = 200;
+inline constexpr uint16_t WIFI_BLINK_FAST_OFF_MS = 200;
+inline constexpr uint16_t WIFI_BLINK_SLOW_ON_MS = 900;
+inline constexpr uint16_t WIFI_BLINK_SLOW_OFF_MS = 300;
 
 }  // namespace humidifier_oasismist1000s
 }  // namespace esphome
