@@ -204,6 +204,14 @@ a shared `DEPENDENCIES` component would fail to load for anyone using the normal
 explicit list. The duplication is kept spelled identically instead. Please do not
 "helpfully" merge it.
 
+## AI assistance
+
+Parts of this repository — the component refactor, the sample configs, the CI
+workflow, and this README — were written with help from an AI coding assistant
+(Anthropic's Claude, via Claude Code). All changes were reviewed by a human
+before merging. The UART protocol details were reverse-engineered from real
+device captures, not generated.
+
 ## License
 
 MIT
