@@ -33,6 +33,7 @@ CONF_MISTING = "misting"
 CONF_FAN = "fan"
 CONF_DISPLAY = "display"
 CONF_TARGET_HUMIDITY = "target_humidity"
+CONF_WIFI_STATUS_LED = "wifi_status_led"
 
 # keep in sync with types.h HUMIDITY_MIN/MAX
 HUMIDITY_MIN = 40
@@ -42,6 +43,8 @@ CONFIG_SCHEMA = (
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(Humidifier),
+            # Behaviour
+            cv.Optional(CONF_WIFI_STATUS_LED, default=False): cv.boolean,
             # Sensor
             cv.Optional(CONF_HUMIDITY): sensor.sensor_schema(
                 unit_of_measurement=UNIT_PERCENT,
@@ -95,6 +98,8 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
+
+    cg.add(var.set_wifi_status_led(config[CONF_WIFI_STATUS_LED]))
 
     if c := config.get(CONF_HUMIDITY):
         s = await sensor.new_sensor(c)

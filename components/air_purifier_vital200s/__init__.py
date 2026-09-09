@@ -30,6 +30,7 @@ CONF_DISPLAY_LOCK = "display_lock"
 CONF_LIGHT_DETECTION = "light_detection"
 CONF_AIR_QUALITY = "air_quality"
 CONF_CANCEL_DEVICE_TIMER = "cancel_device_timer"
+CONF_WIFI_STATUS_LED = "wifi_status_led"
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -37,6 +38,7 @@ CONFIG_SCHEMA = (
             cv.GenerateID(): cv.declare_id(AirPurifier),
             # Behaviour
             cv.Optional(CONF_CANCEL_DEVICE_TIMER, default=False): cv.boolean,
+            cv.Optional(CONF_WIFI_STATUS_LED, default=False): cv.boolean,
             # Sensors
             cv.Optional(CONF_PM25): sensor.sensor_schema(
                 unit_of_measurement=UNIT_MICROGRAMS_PER_CUBIC_METER,
@@ -82,6 +84,7 @@ async def to_code(config):
     await uart.register_uart_device(var, config)
 
     cg.add(var.set_cancel_device_timer(config[CONF_CANCEL_DEVICE_TIMER]))
+    cg.add(var.set_wifi_status_led(config[CONF_WIFI_STATUS_LED]))
 
     if c := config.get(CONF_PM25):
         s = await sensor.new_sensor(c)
