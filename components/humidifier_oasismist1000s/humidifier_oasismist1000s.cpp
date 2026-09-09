@@ -333,7 +333,7 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
       break;
 
     case TLV::DISPLAY:
-      if (display_switch_ != nullptr) display_switch_->publish_state(v == VALUE_ACTIVE);
+      if (display_switch_ != nullptr) display_switch_->publish_state(v == DISPLAY_ON_BRIGHTNESS);
       break;
 
     case TLV::MISTING:

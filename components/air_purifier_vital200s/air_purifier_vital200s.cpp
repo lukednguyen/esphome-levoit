@@ -63,11 +63,8 @@ void PurifierFan::control(const fan::FanCall &call) {
   }
 
   if (call.get_speed().has_value()) {
-    const int speed = *call.get_speed();
-    if (speed >= FAN_SPEED_MIN && speed <= FAN_SPEED_MAX) {
-      parent_->send_mode(Mode::MANUAL);
-      parent_->send_fan_speed(static_cast<uint8_t>(speed));
-    }
+    parent_->send_mode(Mode::MANUAL);
+    parent_->send_fan_speed(static_cast<uint8_t>(*call.get_speed()));
   }
 }
 
@@ -236,15 +233,14 @@ void AirPurifier::send_mode(Mode mode) {
 }
 
 void AirPurifier::send_fan_speed(uint8_t speed) {
-  speed = std::clamp(speed, FAN_SPEED_MIN, FAN_SPEED_MAX);
+  speed = std::clamp<uint8_t>(speed, 1, FAN_SPEED_COUNT);
   ESP_LOGI(TAG, "Fan speed: %d", speed);
   send_command_(ADDR_MANUAL_SPEED, speed);
 }
 
 void AirPurifier::send_display(bool on) {
   ESP_LOGI(TAG, "Display: %s", on ? "ON" : "OFF");
-  const auto brightness = on ? DisplayBrightness::ON : DisplayBrightness::OFF;
-  send_command_(ADDR_DISPLAY, static_cast<uint8_t>(brightness));
+  send_command_(ADDR_DISPLAY, on ? DISPLAY_ON_BRIGHTNESS : VALUE_OFF);
 }
 
 void AirPurifier::send_display_lock(bool on) {
@@ -399,7 +395,7 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
       break;
 
     case TLV::SPEED:
-      if (v >= FAN_SPEED_MIN && v <= FAN_SPEED_MAX) {
+      if (v >= 1 && v <= FAN_SPEED_COUNT) {
         if (fan_ != nullptr) {
           fan_->speed = v;
           fan_->publish_state();

@@ -120,7 +120,7 @@ inline Mode string_to_mode(const std::string &str) {
 
 inline constexpr uint8_t VALUE_OFF = 0x00;
 inline constexpr uint8_t VALUE_ON = 0x01;
-inline constexpr uint8_t VALUE_ACTIVE = 0x64;
+inline constexpr uint8_t DISPLAY_ON_BRIGHTNESS = 0x64;  // display takes a brightness byte, not VALUE_ON
 
 inline constexpr uint8_t HUMIDITY_MIN = 40;
 inline constexpr uint8_t HUMIDITY_MAX = 80;

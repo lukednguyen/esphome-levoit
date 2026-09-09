@@ -147,9 +147,7 @@ inline constexpr const char *air_quality_to_string(uint8_t value) {
 // Fan Speed
 // =============================================================================
 
-inline constexpr uint8_t FAN_SPEED_MIN = 1;
-inline constexpr uint8_t FAN_SPEED_MAX = 4;
-inline constexpr uint8_t FAN_SPEED_COUNT = 4;
+inline constexpr uint8_t FAN_SPEED_COUNT = 4;  // speeds are 1..4
 
 // =============================================================================
 // Values
@@ -157,11 +155,7 @@ inline constexpr uint8_t FAN_SPEED_COUNT = 4;
 
 inline constexpr uint8_t VALUE_OFF = 0x00;
 inline constexpr uint8_t VALUE_ON = 0x01;
-
-enum class DisplayBrightness : uint8_t {
-  OFF = 0x00,
-  ON = 0x64,
-};
+inline constexpr uint8_t DISPLAY_ON_BRIGHTNESS = 0x64;  // display takes a brightness byte, not VALUE_ON
 
 // =============================================================================
 // WiFi LED
