@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "esphome/core/component.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/sensor/sensor.h"
@@ -83,22 +85,16 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   void send_display(bool on);
   void send_mode(Mode mode);
   void send_mist_level(uint8_t level, bool auto_switch_mode = false);
-  void send_target_humidity(uint8_t humidity, bool auto_switch_mode = false); 
+  void send_target_humidity(uint8_t humidity, bool auto_switch_mode = false);
   void send_wifi_status(bool ha_connected, bool wifi_connected);
-
-  // Helpers
-  static const char *mode_to_string(Mode mode);
-  static Mode string_to_mode(const std::string &str);
 
  private:
   // UART
   void read_uart_();
   void send_ping_();
   void send_command_(const Address &addr, uint8_t value);
-  uint8_t calculate_checksum_(const uint8_t *data, size_t len);
-
-  // Address matching
   bool match_address_(const uint8_t *data, const Address &addr);
+  uint8_t calc_checksum_(const uint8_t *data, size_t len);
 
   // Parsing
   void parse_packet_(const uint8_t *data, size_t len);
@@ -107,11 +103,11 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   void parse_tlvs_(const uint8_t *data, size_t len, Handler handler);
 
   void handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *value);
-  void handle_wifi_tlv_(uint8_t type, uint8_t len, const uint8_t *value);
 
   // Helpers
   void invalidate_diagnostic_sensors_();
-  
+
+
   // Entities
   sensor::Sensor *humidity_sensor_{nullptr};
   binary_sensor::BinarySensor *reservoir_sensor_{nullptr};
@@ -131,5 +127,5 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   bool power_on_{false};
 };
 
-}  // namespace levoit_humidifier
+}  // namespace humidifier_oasismist1000s
 }  // namespace esphome

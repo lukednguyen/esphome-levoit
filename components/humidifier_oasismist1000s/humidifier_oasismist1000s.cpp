@@ -3,12 +3,11 @@
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 #include <algorithm>
-#include <cstring>
 
 namespace esphome {
 namespace humidifier_oasismist1000s {
 
-static const char *TAG = "humidifier_oasismist1000s";
+static const char *const TAG = "humidifier_oasismist1000s";
 
 // =============================================================================
 // Entity Implementations
@@ -23,7 +22,7 @@ void DisplaySwitch::write_state(bool state) {
 }
 
 void ModeSelect::control(const std::string &value) {
-  parent_->send_mode(Humidifier::string_to_mode(value));
+  parent_->send_mode(string_to_mode(value));
 }
 
 void TargetHumidityNumber::control(float value) {
@@ -91,13 +90,13 @@ void Humidifier::read_uart_() {
     rx_buffer_.push_back(byte);
 
     // Wait for minimum header
-    if (rx_buffer_.size() < 6) {
+    if (rx_buffer_.size() < RX_MIN_HEADER_LEN) {
       continue;
     }
 
     // Calculate expected size
-    const uint8_t payload_len = rx_buffer_[static_cast<uint8_t>(Offset::PAYLOAD_LEN)];
-    const size_t expected_size = 6 + payload_len;
+    const uint8_t payload_len = rx_buffer_[static_cast<size_t>(Offset::PAYLOAD_LEN)];
+    const size_t expected_size = RX_MIN_HEADER_LEN + payload_len;
 
     // Wait for complete packet
     if (rx_buffer_.size() < expected_size) {
@@ -105,10 +104,10 @@ void Humidifier::read_uart_() {
     }
 
     // Validate and process
-    const uint8_t type = rx_buffer_[static_cast<uint8_t>(Offset::TYPE)];
+    const uint8_t type = rx_buffer_[static_cast<size_t>(Offset::TYPE)];
     if (type == static_cast<uint8_t>(PacketType::STATUS)) {
-      const uint8_t received_checksum = rx_buffer_[static_cast<uint8_t>(Offset::CHECKSUM)];
-      const uint8_t calculated_checksum = calculate_checksum_(rx_buffer_.data(), expected_size);
+      const uint8_t received_checksum = rx_buffer_[static_cast<size_t>(Offset::CHECKSUM)];
+      const uint8_t calculated_checksum = calc_checksum_(rx_buffer_.data(), expected_size);
 
       if (received_checksum == calculated_checksum) {
         parse_packet_(rx_buffer_.data(), expected_size);
@@ -133,10 +132,10 @@ void Humidifier::send_ping_() {
       seq_++,
       static_cast<uint8_t>(PayloadLen::PING),
       0x00,
-      0x00,
+      0x00,  // checksum placeholder
       ADDR_STATUS[0], ADDR_STATUS[1], ADDR_STATUS[2], ADDR_STATUS[3]
     };
-  packet[static_cast<uint8_t>(Offset::CHECKSUM)] = calculate_checksum_(packet, sizeof(packet));
+  packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
 }
 
@@ -147,23 +146,23 @@ void Humidifier::send_command_(const Address &addr, uint8_t value) {
       seq_++,
       static_cast<uint8_t>(PayloadLen::COMMAND),
       0x00,
-      0x00,
+      0x00,  // checksum placeholder
       addr[0], addr[1], addr[2], addr[3],
       0x01, 0x01, value
     };
-  packet[static_cast<uint8_t>(Offset::CHECKSUM)] = calculate_checksum_(packet, sizeof(packet));
+  packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
   ESP_LOGV(TAG, "TX: %s", format_hex_pretty(packet, sizeof(packet)).c_str());
 }
 
-uint8_t Humidifier::calculate_checksum_(const uint8_t *data, size_t len) {
+uint8_t Humidifier::calc_checksum_(const uint8_t *data, size_t len) {
   uint8_t sum = 0;
   for (size_t i = 0; i < len; i++) {
-    if (i != static_cast<uint8_t>(Offset::SEQ) && i != static_cast<uint8_t>(Offset::CHECKSUM)) {
+    if (i != static_cast<size_t>(Offset::SEQ) && i != static_cast<size_t>(Offset::CHECKSUM)) {
       sum += data[i];
     }
   }
-  return 0xFF - sum - data[static_cast<uint8_t>(Offset::SEQ)];
+  return 0xFF - sum - data[static_cast<size_t>(Offset::SEQ)];
 }
 
 bool Humidifier::match_address_(const uint8_t *data, const Address &addr) {
@@ -222,59 +221,41 @@ void Humidifier::send_target_humidity(uint8_t humidity, bool auto_switch_mode) {
 }
 
 void Humidifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
-  uint8_t status;
+  WifiLedStatus status;
   const char *status_str;
-  
+
   if (ha_connected) {
-    status = static_cast<uint8_t>(WifiStatus::CONNECTED);
+    status = WifiLedStatus::SOLID;
     status_str = "solid (HA connected)";
   } else if (wifi_connected) {
-    status = static_cast<uint8_t>(WifiStatus::CONNECTING);
+    status = WifiLedStatus::BLINKING;
     status_str = "blinking (WiFi only)";
   } else {
-    status = static_cast<uint8_t>(WifiStatus::DISCONNECTED);
-    status_str = "off (no WiFi)";
+    status = WifiLedStatus::OFF;
+    status_str = "off (disconnected)";
   }
-  
+
+  ESP_LOGI(TAG, "WiFi LED: %s", status_str);
+
   constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
   constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
-  
-    uint8_t packet[] = {
+
+  uint8_t packet[] = {
       PACKET_HEADER,
       static_cast<uint8_t>(PacketType::STATUS),
       seq_++,
-      static_cast<uint8_t>(PayloadLen::WIFI_STATUS),
+      static_cast<uint8_t>(PayloadLen::WIFI_LED),
       0x00,
-      0x00,
-      ADDR_WIFI_STATUS[0], ADDR_WIFI_STATUS[1], ADDR_WIFI_STATUS[2], ADDR_WIFI_STATUS[3],
-      static_cast<uint8_t>(WifiTLV::STATUS), 0x01, status,
-      static_cast<uint8_t>(WifiTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiTLV::RESET_FLAG), 0x01, 0x00
-    };
-  
-  packet[static_cast<uint8_t>(Offset::CHECKSUM)] = calculate_checksum_(packet, sizeof(packet));
+      0x00,  // checksum placeholder
+      ADDR_WIFI_LED[0], ADDR_WIFI_LED[1], ADDR_WIFI_LED[2], ADDR_WIFI_LED[3],
+      static_cast<uint8_t>(WifiLedTLV::STATUS), 0x01, static_cast<uint8_t>(status),
+      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
+      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
+      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG), 0x01, 0x00
+  };
+
+  packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
-  
-  ESP_LOGI(TAG, "WiFi LED: %s", status_str);
-}
-
-// =============================================================================
-// Mode Helpers
-// =============================================================================
-
-const char *Humidifier::mode_to_string(Mode mode) {
-  switch (mode) {
-    case Mode::MANUAL: return MODE_MANUAL;
-    case Mode::SLEEP:  return MODE_SLEEP;
-    default:           return MODE_AUTO;
-  }
-}
-
-Mode Humidifier::string_to_mode(const std::string &str) {
-  if (str == MODE_MANUAL) return Mode::MANUAL;
-  if (str == MODE_SLEEP)  return Mode::SLEEP;
-  return Mode::AUTO;
 }
 
 // =============================================================================
@@ -282,17 +263,12 @@ Mode Humidifier::string_to_mode(const std::string &str) {
 // =============================================================================
 
 void Humidifier::parse_packet_(const uint8_t *data, size_t len) {
-  if (len < static_cast<size_t>(Offset::TLV_START)) return;
+  if (len < RX_MIN_PACKET_LEN) return;
 
   if (match_address_(data, ADDR_STATUS)) {
     parse_tlvs_(data, len, [this](uint8_t t, uint8_t l, const uint8_t *v) {
       handle_status_tlv_(t, l, v);
     });
-  } else if (match_address_(data, ADDR_WIFI_STATUS)) {
-    // Currently not used
-    // parse_tlvs_(data, len, [this](uint8_t t, uint8_t l, const uint8_t *v) {
-    //   handle_wifi_tlv_(t, l, v);
-    // });
   }
 }
 
@@ -323,12 +299,12 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
   switch (static_cast<TLV>(type)) {
     case TLV::POWER:
       power_on_ = (v == VALUE_ON);
-      if (power_switch_) power_switch_->publish_state(power_on_);
+      if (power_switch_ != nullptr) power_switch_->publish_state(power_on_);
       if (!power_on_) invalidate_diagnostic_sensors_();
       break;
 
     case TLV::RESERVOIR:
-      if (power_on_ && reservoir_sensor_) {
+      if (power_on_ && reservoir_sensor_ != nullptr) {
         reservoir_sensor_->publish_state(v == VALUE_OFF);
       }
       break;
@@ -336,36 +312,36 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
     case TLV::WATER:
       // Moisture sensor: ON = wet (has water), OFF = dry (empty)
       // Only update when power ON and reservoir attached
-      if (power_on_ && water_sensor_ && reservoir_sensor_ && reservoir_sensor_->state) {
+      if (power_on_ && water_sensor_ != nullptr && reservoir_sensor_ != nullptr && reservoir_sensor_->state) {
         water_sensor_->publish_state(v == VALUE_OFF);
       }
       break;
 
     case TLV::DISPLAY:
-      if (display_switch_) display_switch_->publish_state(v == VALUE_ACTIVE);
+      if (display_switch_ != nullptr) display_switch_->publish_state(v == VALUE_ACTIVE);
       break;
 
     case TLV::MISTING:
-      if (power_on_ && misting_sensor_) {
+      if (power_on_ && misting_sensor_ != nullptr) {
         misting_sensor_->publish_state(v == VALUE_ON);
       }
       break;
 
     case TLV::TARGET_HUMIDITY:
-      if (target_humidity_number_) target_humidity_number_->publish_state(v);
+      if (target_humidity_number_ != nullptr) target_humidity_number_->publish_state(v);
       break;
 
     case TLV::CURRENT_HUMIDITY:
-      if (humidity_sensor_) humidity_sensor_->publish_state(v);
+      if (humidity_sensor_ != nullptr) humidity_sensor_->publish_state(v);
       break;
 
     case TLV::MODE:
       last_mode_ = static_cast<Mode>(v);
-      if (mode_select_) mode_select_->publish_state(mode_to_string(last_mode_));
+      if (mode_select_ != nullptr) mode_select_->publish_state(mode_to_string(last_mode_));
       break;
 
     case TLV::MIST_LEVEL:
-      if (mist_level_number_) mist_level_number_->publish_state(v);
+      if (mist_level_number_ != nullptr) mist_level_number_->publish_state(v);
       break;
 
     default:
@@ -374,50 +350,11 @@ void Humidifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *va
   }
 }
 
-void Humidifier::handle_wifi_tlv_(uint8_t type, uint8_t len, const uint8_t *value) {
-  if (len == 0) return;
-
-  switch (static_cast<WifiTLV>(type)) {
-    case WifiTLV::STATUS:
-      if (len >= 1) {
-        const uint8_t status = value[0];        
-        const char *status_str;
-        switch (status) {
-          case static_cast<uint8_t>(WifiStatus::DISCONNECTED): status_str = "disconnected"; break;
-          case static_cast<uint8_t>(WifiStatus::CONNECTED): status_str = "connected"; break;
-          case static_cast<uint8_t>(WifiStatus::CONNECTING): status_str = "connecting"; break;
-          default: status_str = "unknown"; break;
-        }
-        ESP_LOGD(TAG, "WiFi: %s (0x%02X)", status_str, status);
-      }
-      break;
-      
-    case WifiTLV::BLINK_ON:
-    case WifiTLV::BLINK_OFF:
-      if (len >= 2) {
-        uint16_t ms = value[0] | (value[1] << 8);
-        ESP_LOGV(TAG, "WiFi blink %s: %dms", 
-            type == static_cast<uint8_t>(WifiTLV::BLINK_ON) ? "on" : "off", ms);
-      }
-      break;
-      
-    case WifiTLV::RESET_FLAG:
-      if (len >= 1) {
-        ESP_LOGD(TAG, "WiFi reset flag: 0x%02X", value[0]);
-      }
-      break;
-      
-    default:
-      ESP_LOGV(TAG, "Unknown WiFi TLV 0x%02X: %s", type, format_hex_pretty(value, len).c_str());
-      break;
-  }
-}
-
 void Humidifier::invalidate_diagnostic_sensors_() {
-  if (reservoir_sensor_) reservoir_sensor_->invalidate_state();
+  if (reservoir_sensor_ != nullptr) reservoir_sensor_->invalidate_state();
   // water_sensor_ excluded - sticks after power off
-  if (misting_sensor_) misting_sensor_->invalidate_state();
+  if (misting_sensor_ != nullptr) misting_sensor_->invalidate_state();
 }
 
-}  // namespace levoit_humidifier
+}  // namespace humidifier_oasismist1000s
 }  // namespace esphome

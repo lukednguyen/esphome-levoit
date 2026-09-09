@@ -38,6 +38,13 @@ CONF_MODE = "mode"
 CONF_TARGET_HUMIDITY = "target_humidity"
 CONF_MIST_LEVEL = "mist_level"
 
+# These must stay in sync with types.h (MODE_*, HUMIDITY_MIN/MAX, MIST_LEVEL_MIN/MAX).
+MODE_OPTIONS = ["Auto", "Manual", "Sleep"]
+HUMIDITY_MIN = 40
+HUMIDITY_MAX = 80
+MIST_LEVEL_MIN = 1
+MIST_LEVEL_MAX = 9
+
 CONFIG_SCHEMA = (
     cv.Schema(
         {
@@ -132,13 +139,13 @@ async def to_code(config):
         cg.add(var.set_display_switch(s))
 
     if c := config.get(CONF_MODE):
-        s = await select.new_select(c, options=["Auto", "Manual", "Sleep"])
+        s = await select.new_select(c, options=MODE_OPTIONS)
         cg.add(var.set_mode_select(s))
 
     if c := config.get(CONF_TARGET_HUMIDITY):
-        n = await number.new_number(c, min_value=40, max_value=80, step=1)
+        n = await number.new_number(c, min_value=HUMIDITY_MIN, max_value=HUMIDITY_MAX, step=1)
         cg.add(var.set_target_humidity_number(n))
 
     if c := config.get(CONF_MIST_LEVEL):
-        n = await number.new_number(c, min_value=1, max_value=9, step=1)
+        n = await number.new_number(c, min_value=MIST_LEVEL_MIN, max_value=MIST_LEVEL_MAX, step=1)
         cg.add(var.set_mist_level_number(n))
