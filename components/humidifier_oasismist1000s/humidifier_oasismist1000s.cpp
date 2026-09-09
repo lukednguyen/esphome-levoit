@@ -149,25 +149,28 @@ void Humidifier::read_uart_() {
 }
 
 void Humidifier::send_ping_() {
-  uint8_t packet[] = {PACKET_HEADER,  static_cast<uint8_t>(PacketType::PING),
-                      seq_++,         static_cast<uint8_t>(PayloadLen::PING),
-                      0x00,
-                      0x00,  // checksum placeholder
-                      ADDR_STATUS[0], ADDR_STATUS[1],
-                      ADDR_STATUS[2], ADDR_STATUS[3]};
+  // clang-format off
+  uint8_t packet[] = {
+      PACKET_HEADER, static_cast<uint8_t>(PacketType::PING),  // header, packet type
+      seq_++, static_cast<uint8_t>(PayloadLen::PING),         // sequence, payload length
+      0x00, 0x00,                                             // reserved, checksum placeholder
+      ADDR_STATUS[0], ADDR_STATUS[1], ADDR_STATUS[2], ADDR_STATUS[3],
+  };
+  // clang-format on
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
 }
 
 void Humidifier::send_command_(const Address &addr, uint8_t value) {
-  uint8_t packet[] = {PACKET_HEADER, static_cast<uint8_t>(PacketType::STATUS),
-                      seq_++,        static_cast<uint8_t>(PayloadLen::COMMAND),
-                      0x00,
-                      0x00,  // checksum placeholder
-                      addr[0],       addr[1],
-                      addr[2],       addr[3],
-                      0x01,          0x01,
-                      value};
+  // clang-format off
+  uint8_t packet[] = {
+      PACKET_HEADER, static_cast<uint8_t>(PacketType::STATUS),  // header, packet type
+      seq_++, static_cast<uint8_t>(PayloadLen::COMMAND),        // sequence, payload length
+      0x00, 0x00,                                               // reserved, checksum placeholder
+      addr[0], addr[1], addr[2], addr[3],                       // target address
+      0x01, 0x01, value,                                        // TLV: type, length, value
+  };
+  // clang-format on
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
   ESP_LOGV(TAG, "TX: %s", format_hex_pretty(packet, sizeof(packet)).c_str());
@@ -255,30 +258,18 @@ void Humidifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
   constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
   constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
 
-  uint8_t packet[] = {PACKET_HEADER,
-                      static_cast<uint8_t>(PacketType::STATUS),
-                      seq_++,
-                      static_cast<uint8_t>(PayloadLen::WIFI_LED),
-                      0x00,
-                      0x00,  // checksum placeholder
-                      ADDR_WIFI_LED[0],
-                      ADDR_WIFI_LED[1],
-                      ADDR_WIFI_LED[2],
-                      ADDR_WIFI_LED[3],
-                      static_cast<uint8_t>(WifiLedTLV::STATUS),
-                      0x01,
-                      static_cast<uint8_t>(status),
-                      static_cast<uint8_t>(WifiLedTLV::BLINK_ON),
-                      0x02,
-                      blink_lo,
-                      blink_hi,
-                      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF),
-                      0x02,
-                      blink_lo,
-                      blink_hi,
-                      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG),
-                      0x01,
-                      0x00};
+  // clang-format off
+  uint8_t packet[] = {
+      PACKET_HEADER, static_cast<uint8_t>(PacketType::STATUS),  // header, packet type
+      seq_++, static_cast<uint8_t>(PayloadLen::WIFI_LED),       // sequence, payload length
+      0x00, 0x00,                                               // reserved, checksum placeholder
+      ADDR_WIFI_LED[0], ADDR_WIFI_LED[1], ADDR_WIFI_LED[2], ADDR_WIFI_LED[3],
+      static_cast<uint8_t>(WifiLedTLV::STATUS), 0x01, static_cast<uint8_t>(status),
+      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
+      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
+      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG), 0x01, 0x00,
+  };
+  // clang-format on
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
