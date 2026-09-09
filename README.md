@@ -5,14 +5,15 @@ Native ESPHome (UART) integrations for:
 - **Levoit Vital 200S air purifier** — component `air_purifier_vital200s`
 - **Levoit OasisMist 1000S humidifier** — component `humidifier_oasismist1000s`
 
-Both talk to the device's own MCU over the serial link that the stock Wi-Fi
+Both talk to the device's own MCU over the serial link that the built-in ESP32
 module used, so all control and sensor data stays local — no cloud, no Levoit
 app.
 
 ## ⚠️ Before you flash: back up the stock firmware
 
-The Wi-Fi module inside these devices **is** an ESP32-C3. This project reflashes
-that chip **in place** with ESPHome — it does not add a second board. Flashing
+The built-in ESP32 module inside these devices is an ESP32-C3. This project
+reflashes that chip **in place** with ESPHome — it does not add a second board.
+Flashing
 ESPHome **overwrites Levoit's original firmware**, and Levoit does not publish
 it anywhere. If you do not save a copy first, there is **no way back** — the
 Levoit app, cloud, and Levoit OTA updates are gone permanently.
@@ -69,9 +70,9 @@ pulls straight from GitHub.
 
 ## Hardware / wiring
 
-The stock Wi-Fi module inside the device is an ESP32-C3, reflashed in place with
-ESPHome (see the backup warning above). It reaches the main MCU over this serial
-link:
+The built-in ESP32 module inside the device is an ESP32-C3, reflashed in place
+with ESPHome (see the backup warning above). It reaches the main MCU over this
+serial link:
 
 | Signal | ESP32-C3 pin | Notes |
 |---|---|---|
@@ -143,9 +144,10 @@ number:
 
 ## Protocol coverage / TODO
 
-The UART protocol was reverse-engineered by capturing traffic between the stock
-Wi-Fi module and the device MCU. **The capture is incomplete — not every device
-function has been decoded.** Unknown frames are logged at `VERBOSE` as
+The UART protocol was reverse-engineered by capturing traffic between the
+built-in ESP32 module and the device MCU. **The capture is incomplete — not
+every device function has been decoded.** Unknown frames are logged at
+`VERBOSE` as
 `Unknown TLV 0x..` / `Unknown Status TLV 0x..`.
 
 ### Air purifier (`vital200s`) — not yet captured / incomplete

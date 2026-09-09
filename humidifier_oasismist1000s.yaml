@@ -4,7 +4,7 @@
 # add-on), adjust the substitutions below, add the secrets listed in
 # secrets.yaml.example, and hit Install. Nothing needs to be copied locally.
 #
-# Hardware: the device's stock Wi-Fi module IS an ESP32-C3; it is reflashed in
+# Hardware: the device's built-in ESP32 module (an ESP32-C3) is reflashed in
 # place with ESPHome. BACK UP THE STOCK FIRMWARE FIRST (see README) - Levoit's
 # firmware is not published and cannot be re-obtained. UART @ 115200, TX GPIO19 /
 # RX GPIO18.
