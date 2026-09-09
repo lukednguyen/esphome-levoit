@@ -93,6 +93,7 @@ void AirPurifier::update() { send_ping_(); }
 void AirPurifier::dump_config() {
   ESP_LOGCONFIG(TAG, "Air Purifier:");
   ESP_LOGCONFIG(TAG, "  Update interval: %.1fs", get_update_interval() / 1000.0f);
+  ESP_LOGCONFIG(TAG, "  Cancel device timer: %s", YESNO(cancel_device_timer_));
   LOG_SENSOR("  ", "PM2.5", pm25_sensor_);
   LOG_TEXT_SENSOR("  ", "Air Quality", air_quality_sensor_);
   if (fan_ != nullptr) {
@@ -324,7 +325,7 @@ void AirPurifier::handle_timer_tlv_(uint8_t type, uint8_t len, const uint8_t *va
       break;
 
     case TimerTLV::TOTAL:
-      if (seconds > 0) {
+      if (cancel_device_timer_ && seconds > 0) {
         ESP_LOGW(TAG, "Timer %lu seconds detected, cancelling...", static_cast<unsigned long>(seconds));
         send_timer_cancel_();
       }

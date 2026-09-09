@@ -100,6 +100,12 @@ Common to both components:
 | `display_lock` | switch | child lock |
 | `light_detection` | switch | auto-dim in the dark |
 
+Plus one behaviour option:
+
+| Key | Default | Description |
+|---|---|---|
+| `cancel_device_timer` | `false` | Cancel any timer started from the device's own timer button, so the purifier never switches itself off |
+
 ### `humidifier_oasismist1000s`
 
 | Key | Entity type | Notes |
@@ -152,9 +158,10 @@ every device function has been decoded.** Unknown frames are logged at
 
 ### Air purifier (`vital200s`) — not yet captured / incomplete
 
-- **Timer:** only "cancel timer" is transmitted. There is no "set timer to N
-  hours" TX, and the timer-remaining value reported by the MCU is logged only,
-  not exposed as an entity.
+- **Timer:** only "cancel timer" is transmitted, and only when
+  `cancel_device_timer:` is enabled. There is no "set timer to N hours" TX, and
+  the timer-remaining value reported by the MCU is logged only, not exposed as an
+  entity.
 - **Filter life:** not readable back from the MCU with current knowledge. The
   filter-reset command was partially reverse-engineered but is left
   unimplemented (see the protocol-notes comment in `types.h`).

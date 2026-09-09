@@ -91,6 +91,9 @@ uart:
 air_purifier_vital200s:
   id: air_purifier
   uart_id: uart_bus
+  # Cancel any timer started from the device's own timer button, so the purifier
+  # never switches itself off. Off by default.
+  # cancel_device_timer: true
   fan:
     id: air_purifier_fan
     name: "Air Purifier"
