@@ -52,16 +52,16 @@ enum class Offset : size_t {
 
 using Address = std::array<uint8_t, 4>;
 
-inline constexpr Address ADDR_POWER           = {0x02, 0x00, 0x50, 0x00};
-inline constexpr Address ADDR_STATUS          = {0x02, 0x00, 0x55, 0x00};
-inline constexpr Address ADDR_MODE            = {0x02, 0x02, 0x55, 0x00};
-inline constexpr Address ADDR_MANUAL_SPEED    = {0x02, 0x03, 0x55, 0x00};
-inline constexpr Address ADDR_DISPLAY         = {0x02, 0x04, 0x55, 0x00};
+inline constexpr Address ADDR_POWER = {0x02, 0x00, 0x50, 0x00};
+inline constexpr Address ADDR_STATUS = {0x02, 0x00, 0x55, 0x00};
+inline constexpr Address ADDR_MODE = {0x02, 0x02, 0x55, 0x00};
+inline constexpr Address ADDR_MANUAL_SPEED = {0x02, 0x03, 0x55, 0x00};
+inline constexpr Address ADDR_DISPLAY = {0x02, 0x04, 0x55, 0x00};
 inline constexpr Address ADDR_LIGHT_DETECTION = {0x02, 0x11, 0x55, 0x00};
-inline constexpr Address ADDR_WIFI_LED        = {0x02, 0x18, 0x50, 0x00};
-inline constexpr Address ADDR_TIMER_SET       = {0x02, 0x19, 0x50, 0x00};
-inline constexpr Address ADDR_TIMER           = {0x02, 0x1B, 0x50, 0x00};
-inline constexpr Address ADDR_DISPLAY_LOCK    = {0x02, 0x40, 0x51, 0x00};
+inline constexpr Address ADDR_WIFI_LED = {0x02, 0x18, 0x50, 0x00};
+inline constexpr Address ADDR_TIMER_SET = {0x02, 0x19, 0x50, 0x00};
+inline constexpr Address ADDR_TIMER = {0x02, 0x1B, 0x50, 0x00};
+inline constexpr Address ADDR_DISPLAY_LOCK = {0x02, 0x40, 0x51, 0x00};
 
 // Protocol notes (observed, not implemented):
 //   ADDR_FILTER_RESET  = {0x02, 0x05, 0x55, 0x00}, PayloadLen 6, action byte 0x03.
@@ -121,15 +121,18 @@ inline constexpr const char *MODE_SLEEP = "Sleep";
 
 inline constexpr const char *mode_to_string(Mode mode) {
   switch (mode) {
-    case Mode::MANUAL: return MODE_MANUAL;
-    case Mode::SLEEP:  return MODE_SLEEP;
-    default:           return MODE_AUTO;
+    case Mode::MANUAL:
+      return MODE_MANUAL;
+    case Mode::SLEEP:
+      return MODE_SLEEP;
+    default:
+      return MODE_AUTO;
   }
 }
 
 inline Mode string_to_mode(const std::string &str) {
   if (str == MODE_MANUAL) return Mode::MANUAL;
-  if (str == MODE_SLEEP)  return Mode::SLEEP;
+  if (str == MODE_SLEEP) return Mode::SLEEP;
   return Mode::AUTO;
 }
 
@@ -153,17 +156,21 @@ inline constexpr const char *AIR_QUALITY_BAD = "Bad";
 
 inline constexpr const char *air_quality_to_string(AirQuality quality) {
   switch (quality) {
-    case AirQuality::VERY_GOOD: return AIR_QUALITY_VERY_GOOD;
-    case AirQuality::GOOD:      return AIR_QUALITY_GOOD;
-    case AirQuality::MODERATE:  return AIR_QUALITY_MODERATE;
-    case AirQuality::BAD:       return AIR_QUALITY_BAD;
-    default:                    return AIR_QUALITY_UNKNOWN;
+    case AirQuality::VERY_GOOD:
+      return AIR_QUALITY_VERY_GOOD;
+    case AirQuality::GOOD:
+      return AIR_QUALITY_GOOD;
+    case AirQuality::MODERATE:
+      return AIR_QUALITY_MODERATE;
+    case AirQuality::BAD:
+      return AIR_QUALITY_BAD;
+    default:
+      return AIR_QUALITY_UNKNOWN;
   }
 }
 
 inline constexpr AirQuality uint8_to_air_quality(uint8_t value) {
-  if (value >= static_cast<uint8_t>(AirQuality::VERY_GOOD) &&
-      value <= static_cast<uint8_t>(AirQuality::BAD)) {
+  if (value >= static_cast<uint8_t>(AirQuality::VERY_GOOD) && value <= static_cast<uint8_t>(AirQuality::BAD)) {
     return static_cast<AirQuality>(value);
   }
   return AirQuality::UNKNOWN;

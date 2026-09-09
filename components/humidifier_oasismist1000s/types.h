@@ -50,12 +50,12 @@ enum class Offset : size_t {
 
 using Address = std::array<uint8_t, 4>;
 
-inline constexpr Address ADDR_POWER           = {0x02, 0x00, 0x50, 0x00};
-inline constexpr Address ADDR_DISPLAY         = {0x02, 0x0F, 0x50, 0x00};
-inline constexpr Address ADDR_WIFI_LED        = {0x02, 0x18, 0x50, 0x00};
-inline constexpr Address ADDR_STATUS          = {0x02, 0x30, 0x55, 0x00};
-inline constexpr Address ADDR_MODE            = {0x02, 0x32, 0x55, 0x00};
-inline constexpr Address ADDR_MANUAL          = {0x02, 0x33, 0x55, 0x00};
+inline constexpr Address ADDR_POWER = {0x02, 0x00, 0x50, 0x00};
+inline constexpr Address ADDR_DISPLAY = {0x02, 0x0F, 0x50, 0x00};
+inline constexpr Address ADDR_WIFI_LED = {0x02, 0x18, 0x50, 0x00};
+inline constexpr Address ADDR_STATUS = {0x02, 0x30, 0x55, 0x00};
+inline constexpr Address ADDR_MODE = {0x02, 0x32, 0x55, 0x00};
+inline constexpr Address ADDR_MANUAL = {0x02, 0x33, 0x55, 0x00};
 inline constexpr Address ADDR_TARGET_HUMIDITY = {0x02, 0x36, 0x55, 0x00};
 
 // =============================================================================
@@ -102,15 +102,18 @@ inline constexpr const char *MODE_SLEEP = "Sleep";
 
 inline constexpr const char *mode_to_string(Mode mode) {
   switch (mode) {
-    case Mode::MANUAL: return MODE_MANUAL;
-    case Mode::SLEEP:  return MODE_SLEEP;
-    default:           return MODE_AUTO;
+    case Mode::MANUAL:
+      return MODE_MANUAL;
+    case Mode::SLEEP:
+      return MODE_SLEEP;
+    default:
+      return MODE_AUTO;
   }
 }
 
 inline Mode string_to_mode(const std::string &str) {
   if (str == MODE_MANUAL) return Mode::MANUAL;
-  if (str == MODE_SLEEP)  return Mode::SLEEP;
+  if (str == MODE_SLEEP) return Mode::SLEEP;
   return Mode::AUTO;
 }
 

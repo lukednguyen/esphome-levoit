@@ -99,14 +99,13 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   // Parsing
   void parse_packet_(const uint8_t *data, size_t len);
 
-  template<typename Handler>
+  template <typename Handler>
   void parse_tlvs_(const uint8_t *data, size_t len, Handler handler);
 
   void handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *value);
 
   // Helpers
   void invalidate_diagnostic_sensors_();
-
 
   // Entities
   sensor::Sensor *humidity_sensor_{nullptr};
@@ -118,7 +117,7 @@ class Humidifier : public PollingComponent, public uart::UARTDevice {
   ModeSelect *mode_select_{nullptr};
   TargetHumidityNumber *target_humidity_number_{nullptr};
   MistLevelNumber *mist_level_number_{nullptr};
-  
+
   // State
   std::vector<uint8_t> rx_buffer_;
   uint32_t last_rx_time_{0};

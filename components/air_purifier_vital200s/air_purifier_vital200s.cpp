@@ -13,17 +13,11 @@ static const char *const TAG = "air_purifier_vital200s";
 // Entity Implementations
 // =============================================================================
 
-void DisplaySwitch::write_state(bool state) {
-  parent_->send_display(state);
-}
+void DisplaySwitch::write_state(bool state) { parent_->send_display(state); }
 
-void DisplayLockSwitch::write_state(bool state) {
-  parent_->send_display_lock(state);
-}
+void DisplayLockSwitch::write_state(bool state) { parent_->send_display_lock(state); }
 
-void LightDetectionSwitch::write_state(bool state) {
-  parent_->send_light_detection(state);
-}
+void LightDetectionSwitch::write_state(bool state) { parent_->send_light_detection(state); }
 
 fan::FanTraits PurifierFan::get_traits() {
   fan::FanTraits traits;
@@ -40,8 +34,7 @@ void PurifierFan::setup() {
   this->restore_state_();
 
   if (this->state) {
-    ESP_LOGI(TAG, "Restoring fan: ON, mode: %s, speed: %d", 
-             this->preset_mode.c_str(), this->speed);
+    ESP_LOGI(TAG, "Restoring fan: ON, mode: %s, speed: %d", this->preset_mode.c_str(), this->speed);
     parent_->send_power(true);
     if (!this->preset_mode.empty()) {
       parent_->send_mode(string_to_mode(this->preset_mode));
@@ -88,13 +81,9 @@ void AirPurifier::setup() {
   }
 }
 
-void AirPurifier::loop() {
-  read_uart_();
-}
+void AirPurifier::loop() { read_uart_(); }
 
-void AirPurifier::update() {
-  send_ping_();
-}
+void AirPurifier::update() { send_ping_(); }
 
 void AirPurifier::dump_config() {
   ESP_LOGCONFIG(TAG, "Air Purifier:");
@@ -183,31 +172,26 @@ void AirPurifier::read_uart_() {
 }
 
 void AirPurifier::send_ping_() {
-  uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::PING),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::PING),
-      0x00,
-      0x00,  // checksum placeholder
-      ADDR_STATUS[0], ADDR_STATUS[1], ADDR_STATUS[2], ADDR_STATUS[3]
-  };
+  uint8_t packet[] = {PACKET_HEADER,  static_cast<uint8_t>(PacketType::PING),
+                      seq_++,         static_cast<uint8_t>(PayloadLen::PING),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      ADDR_STATUS[0], ADDR_STATUS[1],
+                      ADDR_STATUS[2], ADDR_STATUS[3]};
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
 }
 
 void AirPurifier::send_command_(const Address &addr, uint8_t value) {
-  uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::STATUS),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::COMMAND),
-      0x00,
-      0x00,  // checksum placeholder
-      addr[0], addr[1], addr[2], addr[3],
-      0x01, 0x01, value
-  };
+  uint8_t packet[] = {PACKET_HEADER, static_cast<uint8_t>(PacketType::STATUS),
+                      seq_++,        static_cast<uint8_t>(PayloadLen::COMMAND),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      addr[0],       addr[1],
+                      addr[2],       addr[3],
+                      0x01,          0x01,
+                      value};
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
@@ -285,19 +269,30 @@ void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
   constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
   constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
 
-  uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::STATUS),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::WIFI_LED),
-      0x00,
-      0x00,  // checksum placeholder
-      ADDR_WIFI_LED[0], ADDR_WIFI_LED[1], ADDR_WIFI_LED[2], ADDR_WIFI_LED[3],
-      static_cast<uint8_t>(WifiLedTLV::STATUS), 0x01, static_cast<uint8_t>(status),
-      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG), 0x01, 0x00
-  };
+  uint8_t packet[] = {PACKET_HEADER,
+                      static_cast<uint8_t>(PacketType::STATUS),
+                      seq_++,
+                      static_cast<uint8_t>(PayloadLen::WIFI_LED),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      ADDR_WIFI_LED[0],
+                      ADDR_WIFI_LED[1],
+                      ADDR_WIFI_LED[2],
+                      ADDR_WIFI_LED[3],
+                      static_cast<uint8_t>(WifiLedTLV::STATUS),
+                      0x01,
+                      static_cast<uint8_t>(status),
+                      static_cast<uint8_t>(WifiLedTLV::BLINK_ON),
+                      0x02,
+                      blink_lo,
+                      blink_hi,
+                      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF),
+                      0x02,
+                      blink_lo,
+                      blink_hi,
+                      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG),
+                      0x01,
+                      0x00};
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
@@ -311,16 +306,22 @@ void AirPurifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
 void AirPurifier::send_timer_cancel_() {
   ESP_LOGI(TAG, "Cancelling timer");
 
-  uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::STATUS),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::TIMER_CANCEL),
-      0x00,
-      0x00,  // checksum placeholder
-      ADDR_TIMER_SET[0], ADDR_TIMER_SET[1], ADDR_TIMER_SET[2], ADDR_TIMER_SET[3],
-      0x01, 0x04, 0x00, 0x00, 0x00, 0x00
-  };
+  uint8_t packet[] = {PACKET_HEADER,
+                      static_cast<uint8_t>(PacketType::STATUS),
+                      seq_++,
+                      static_cast<uint8_t>(PayloadLen::TIMER_CANCEL),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      ADDR_TIMER_SET[0],
+                      ADDR_TIMER_SET[1],
+                      ADDR_TIMER_SET[2],
+                      ADDR_TIMER_SET[3],
+                      0x01,
+                      0x04,
+                      0x00,
+                      0x00,
+                      0x00,
+                      0x00};
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
@@ -364,17 +365,15 @@ void AirPurifier::parse_packet_(const uint8_t *data, size_t len) {
   }
 
   if (match_address_(data, ADDR_STATUS) && len >= static_cast<size_t>(Offset::TLV_START_STATUS)) {
-    parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_STATUS), [this](uint8_t t, uint8_t l, const uint8_t *v) {
-      handle_status_tlv_(t, l, v);
-    });
+    parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_STATUS),
+                [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_status_tlv_(t, l, v); });
   } else if (match_address_(data, ADDR_TIMER) && len >= static_cast<size_t>(Offset::TLV_START_TIMER)) {
-    parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_TIMER), [this](uint8_t t, uint8_t l, const uint8_t *v) {
-      handle_timer_tlv_(t, l, v);
-    });
+    parse_tlvs_(data, len, static_cast<size_t>(Offset::TLV_START_TIMER),
+                [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_timer_tlv_(t, l, v); });
   }
 }
 
-template<typename Handler>
+template <typename Handler>
 void AirPurifier::parse_tlvs_(const uint8_t *data, size_t len, size_t start, Handler handler) {
   size_t pos = start;
   while (pos + 2 <= len) {

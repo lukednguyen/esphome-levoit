@@ -13,25 +13,15 @@ static const char *const TAG = "humidifier_oasismist1000s";
 // Entity Implementations
 // =============================================================================
 
-void PowerSwitch::write_state(bool state) {
-  parent_->send_power(state);
-}
+void PowerSwitch::write_state(bool state) { parent_->send_power(state); }
 
-void DisplaySwitch::write_state(bool state) {
-  parent_->send_display(state);
-}
+void DisplaySwitch::write_state(bool state) { parent_->send_display(state); }
 
-void ModeSelect::control(const std::string &value) {
-  parent_->send_mode(string_to_mode(value));
-}
+void ModeSelect::control(const std::string &value) { parent_->send_mode(string_to_mode(value)); }
 
-void TargetHumidityNumber::control(float value) {
-  parent_->send_target_humidity(static_cast<uint8_t>(value), true);
-}
+void TargetHumidityNumber::control(float value) { parent_->send_target_humidity(static_cast<uint8_t>(value), true); }
 
-void MistLevelNumber::control(float value) {
-  parent_->send_mist_level(static_cast<uint8_t>(value), true);
-}
+void MistLevelNumber::control(float value) { parent_->send_mist_level(static_cast<uint8_t>(value), true); }
 
 // =============================================================================
 // Component Lifecycle
@@ -43,13 +33,9 @@ void Humidifier::setup() {
   invalidate_diagnostic_sensors_();
 }
 
-void Humidifier::loop() {
-  read_uart_();
-}
+void Humidifier::loop() { read_uart_(); }
 
-void Humidifier::update() {
-  send_ping_();
-}
+void Humidifier::update() { send_ping_(); }
 
 void Humidifier::dump_config() {
   ESP_LOGCONFIG(TAG, "Humidifier OasisMist 1000S:");
@@ -126,30 +112,25 @@ void Humidifier::read_uart_() {
 }
 
 void Humidifier::send_ping_() {
-    uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::PING),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::PING),
-      0x00,
-      0x00,  // checksum placeholder
-      ADDR_STATUS[0], ADDR_STATUS[1], ADDR_STATUS[2], ADDR_STATUS[3]
-    };
+  uint8_t packet[] = {PACKET_HEADER,  static_cast<uint8_t>(PacketType::PING),
+                      seq_++,         static_cast<uint8_t>(PayloadLen::PING),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      ADDR_STATUS[0], ADDR_STATUS[1],
+                      ADDR_STATUS[2], ADDR_STATUS[3]};
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
 }
 
 void Humidifier::send_command_(const Address &addr, uint8_t value) {
-    uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::STATUS),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::COMMAND),
-      0x00,
-      0x00,  // checksum placeholder
-      addr[0], addr[1], addr[2], addr[3],
-      0x01, 0x01, value
-    };
+  uint8_t packet[] = {PACKET_HEADER, static_cast<uint8_t>(PacketType::STATUS),
+                      seq_++,        static_cast<uint8_t>(PayloadLen::COMMAND),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      addr[0],       addr[1],
+                      addr[2],       addr[3],
+                      0x01,          0x01,
+                      value};
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
   ESP_LOGV(TAG, "TX: %s", format_hex_pretty(packet, sizeof(packet)).c_str());
@@ -192,14 +173,12 @@ void Humidifier::send_mode(Mode mode) {
 
 void Humidifier::send_mist_level(uint8_t level, bool auto_switch_mode) {
   level = std::clamp(level, MIST_LEVEL_MIN, MIST_LEVEL_MAX);
-  
+
   bool need_power = !power_on_;
   bool need_mode = auto_switch_mode && last_mode_ != Mode::MANUAL;
-  
-  ESP_LOGI(TAG, "Mist level: %d%s%s", level,
-      need_power ? " (powering on)" : "",
-      need_mode ? " (→ Manual)" : "");
-  
+
+  ESP_LOGI(TAG, "Mist level: %d%s%s", level, need_power ? " (powering on)" : "", need_mode ? " (→ Manual)" : "");
+
   if (need_power) send_command_(ADDR_POWER, VALUE_ON);
   if (need_power || need_mode) send_command_(ADDR_MODE, static_cast<uint8_t>(Mode::MANUAL));
   send_command_(ADDR_MANUAL, level);
@@ -207,14 +186,13 @@ void Humidifier::send_mist_level(uint8_t level, bool auto_switch_mode) {
 
 void Humidifier::send_target_humidity(uint8_t humidity, bool auto_switch_mode) {
   humidity = std::clamp(humidity, HUMIDITY_MIN, HUMIDITY_MAX);
-  
+
   bool need_power = !power_on_;
   bool need_mode = auto_switch_mode && last_mode_ != Mode::AUTO && last_mode_ != Mode::SLEEP;
-  
-  ESP_LOGI(TAG, "Target humidity: %d%%%s%s", humidity,
-      need_power ? " (powering on)" : "",
-      need_mode ? " (→ Auto)" : "");
-  
+
+  ESP_LOGI(TAG, "Target humidity: %d%%%s%s", humidity, need_power ? " (powering on)" : "",
+           need_mode ? " (→ Auto)" : "");
+
   if (need_power) send_command_(ADDR_POWER, VALUE_ON);
   if (need_power || need_mode) send_command_(ADDR_MODE, static_cast<uint8_t>(Mode::AUTO));
   send_command_(ADDR_TARGET_HUMIDITY, humidity);
@@ -240,19 +218,30 @@ void Humidifier::send_wifi_status(bool ha_connected, bool wifi_connected) {
   constexpr uint8_t blink_lo = WIFI_BLINK_MS & 0xFF;
   constexpr uint8_t blink_hi = (WIFI_BLINK_MS >> 8) & 0xFF;
 
-  uint8_t packet[] = {
-      PACKET_HEADER,
-      static_cast<uint8_t>(PacketType::STATUS),
-      seq_++,
-      static_cast<uint8_t>(PayloadLen::WIFI_LED),
-      0x00,
-      0x00,  // checksum placeholder
-      ADDR_WIFI_LED[0], ADDR_WIFI_LED[1], ADDR_WIFI_LED[2], ADDR_WIFI_LED[3],
-      static_cast<uint8_t>(WifiLedTLV::STATUS), 0x01, static_cast<uint8_t>(status),
-      static_cast<uint8_t>(WifiLedTLV::BLINK_ON), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF), 0x02, blink_lo, blink_hi,
-      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG), 0x01, 0x00
-  };
+  uint8_t packet[] = {PACKET_HEADER,
+                      static_cast<uint8_t>(PacketType::STATUS),
+                      seq_++,
+                      static_cast<uint8_t>(PayloadLen::WIFI_LED),
+                      0x00,
+                      0x00,  // checksum placeholder
+                      ADDR_WIFI_LED[0],
+                      ADDR_WIFI_LED[1],
+                      ADDR_WIFI_LED[2],
+                      ADDR_WIFI_LED[3],
+                      static_cast<uint8_t>(WifiLedTLV::STATUS),
+                      0x01,
+                      static_cast<uint8_t>(status),
+                      static_cast<uint8_t>(WifiLedTLV::BLINK_ON),
+                      0x02,
+                      blink_lo,
+                      blink_hi,
+                      static_cast<uint8_t>(WifiLedTLV::BLINK_OFF),
+                      0x02,
+                      blink_lo,
+                      blink_hi,
+                      static_cast<uint8_t>(WifiLedTLV::RESET_FLAG),
+                      0x01,
+                      0x00};
 
   packet[static_cast<size_t>(Offset::CHECKSUM)] = calc_checksum_(packet, sizeof(packet));
   write_array(packet, sizeof(packet));
@@ -266,27 +255,25 @@ void Humidifier::parse_packet_(const uint8_t *data, size_t len) {
   if (len < RX_MIN_PACKET_LEN) return;
 
   if (match_address_(data, ADDR_STATUS)) {
-    parse_tlvs_(data, len, [this](uint8_t t, uint8_t l, const uint8_t *v) {
-      handle_status_tlv_(t, l, v);
-    });
+    parse_tlvs_(data, len, [this](uint8_t t, uint8_t l, const uint8_t *v) { handle_status_tlv_(t, l, v); });
   }
 }
 
-template<typename Handler>
+template <typename Handler>
 void Humidifier::parse_tlvs_(const uint8_t *data, size_t len, Handler handler) {
   constexpr size_t tlv_start = static_cast<size_t>(Offset::TLV_START);
   size_t pos = tlv_start;
-  
+
   while (pos + 2 <= len) {
     const uint8_t type = data[pos];
     const uint8_t tlv_len = data[pos + 1];
-    
+
     if (pos + 2 + tlv_len > len) break;
-    
+
     if (tlv_len > 0) {
       handler(type, tlv_len, &data[pos + 2]);
     }
-    
+
     pos += 2 + tlv_len;
   }
 }
