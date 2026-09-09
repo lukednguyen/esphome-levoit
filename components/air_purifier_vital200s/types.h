@@ -118,15 +118,12 @@ inline constexpr const char *MODE_AUTO = "Auto";
 inline constexpr const char *MODE_MANUAL = "Manual";
 inline constexpr const char *MODE_SLEEP = "Sleep";
 
+// index = Mode value: MANUAL=0, SLEEP=1, AUTO=2
+inline constexpr std::array<const char *, 3> MODE_NAMES = {MODE_MANUAL, MODE_SLEEP, MODE_AUTO};
+
 inline constexpr const char *mode_to_string(Mode mode) {
-  switch (mode) {
-    case Mode::MANUAL:
-      return MODE_MANUAL;
-    case Mode::SLEEP:
-      return MODE_SLEEP;
-    default:
-      return MODE_AUTO;
-  }
+  const size_t i = static_cast<size_t>(mode);
+  return i < MODE_NAMES.size() ? MODE_NAMES[i] : MODE_AUTO;
 }
 
 inline Mode string_to_mode(const std::string &str) {
@@ -139,40 +136,11 @@ inline Mode string_to_mode(const std::string &str) {
 // Air Quality
 // =============================================================================
 
-enum class AirQuality : uint8_t {
-  UNKNOWN = 0,
-  VERY_GOOD = 1,
-  GOOD = 2,
-  MODERATE = 3,
-  BAD = 4,
-};
+// index = MCU air-quality value; 0 doubles as the out-of-range fallback
+inline constexpr std::array<const char *, 5> AIR_QUALITY_NAMES = {"Unknown", "Very Good", "Good", "Moderate", "Bad"};
 
-inline constexpr const char *AIR_QUALITY_UNKNOWN = "Unknown";
-inline constexpr const char *AIR_QUALITY_VERY_GOOD = "Very Good";
-inline constexpr const char *AIR_QUALITY_GOOD = "Good";
-inline constexpr const char *AIR_QUALITY_MODERATE = "Moderate";
-inline constexpr const char *AIR_QUALITY_BAD = "Bad";
-
-inline constexpr const char *air_quality_to_string(AirQuality quality) {
-  switch (quality) {
-    case AirQuality::VERY_GOOD:
-      return AIR_QUALITY_VERY_GOOD;
-    case AirQuality::GOOD:
-      return AIR_QUALITY_GOOD;
-    case AirQuality::MODERATE:
-      return AIR_QUALITY_MODERATE;
-    case AirQuality::BAD:
-      return AIR_QUALITY_BAD;
-    default:
-      return AIR_QUALITY_UNKNOWN;
-  }
-}
-
-inline constexpr AirQuality uint8_to_air_quality(uint8_t value) {
-  if (value >= static_cast<uint8_t>(AirQuality::VERY_GOOD) && value <= static_cast<uint8_t>(AirQuality::BAD)) {
-    return static_cast<AirQuality>(value);
-  }
-  return AirQuality::UNKNOWN;
+inline constexpr const char *air_quality_to_string(uint8_t value) {
+  return value < AIR_QUALITY_NAMES.size() ? AIR_QUALITY_NAMES[value] : AIR_QUALITY_NAMES[0];
 }
 
 // =============================================================================

@@ -100,15 +100,12 @@ inline constexpr const char *MODE_AUTO = "Auto";
 inline constexpr const char *MODE_MANUAL = "Manual";
 inline constexpr const char *MODE_SLEEP = "Sleep";
 
+// index = Mode value: AUTO=0, MANUAL=1, SLEEP=2
+inline constexpr std::array<const char *, 3> MODE_NAMES = {MODE_AUTO, MODE_MANUAL, MODE_SLEEP};
+
 inline constexpr const char *mode_to_string(Mode mode) {
-  switch (mode) {
-    case Mode::MANUAL:
-      return MODE_MANUAL;
-    case Mode::SLEEP:
-      return MODE_SLEEP;
-    default:
-      return MODE_AUTO;
-  }
+  const size_t i = static_cast<size_t>(mode);
+  return i < MODE_NAMES.size() ? MODE_NAMES[i] : MODE_AUTO;
 }
 
 inline Mode string_to_mode(const std::string &str) {

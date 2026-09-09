@@ -421,9 +421,9 @@ void AirPurifier::handle_status_tlv_(uint8_t type, uint8_t len, const uint8_t *v
 
     case TLV::AIR_QUALITY:
       if (air_quality_sensor_ != nullptr) {
-        const auto quality = uint8_to_air_quality(v);
-        air_quality_sensor_->publish_state(air_quality_to_string(quality));
-        ESP_LOGD(TAG, "Air quality: %s", air_quality_to_string(quality));
+        const char *quality = air_quality_to_string(v);
+        air_quality_sensor_->publish_state(quality);
+        ESP_LOGD(TAG, "Air quality: %s", quality);
       }
       break;
 
