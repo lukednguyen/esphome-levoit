@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import uart, sensor, switch, select, number, binary_sensor
+from esphome.components import uart, sensor, fan, switch, number, binary_sensor
 from esphome.const import (
     CONF_ID,
     DEVICE_CLASS_CONNECTIVITY,
@@ -16,27 +16,27 @@ from esphome.const import (
 
 CODEOWNERS = ["@lukednguyen"]
 DEPENDENCIES = ["uart"]
-AUTO_LOAD = ["sensor", "switch", "select", "number", "binary_sensor"]
+AUTO_LOAD = ["sensor", "fan", "switch", "number", "binary_sensor"]
 
 ns = cg.esphome_ns.namespace("humidifier_oasismist1000s")
 Humidifier = ns.class_("Humidifier", cg.PollingComponent, uart.UARTDevice)
 
-PowerSwitch = ns.class_("PowerSwitch", switch.Switch, cg.Parented.template(Humidifier))
+HumidifierFan = ns.class_("HumidifierFan", fan.Fan, cg.Parented.template(Humidifier))
 DisplaySwitch = ns.class_("DisplaySwitch", switch.Switch, cg.Parented.template(Humidifier))
-ModeSelect = ns.class_("ModeSelect", select.Select, cg.Parented.template(Humidifier))
 TargetHumidityNumber = ns.class_("TargetHumidityNumber", number.Number, cg.Parented.template(Humidifier))
-MistLevelNumber = ns.class_("MistLevelNumber", number.Number, cg.Parented.template(Humidifier))
 
 # Config keys
 CONF_HUMIDITY = "humidity"
 CONF_RESERVOIR = "reservoir"
 CONF_WATER = "water"
 CONF_MISTING = "misting"
-CONF_POWER = "power"
+CONF_FAN = "fan"
 CONF_DISPLAY = "display"
-CONF_MODE = "mode"
 CONF_TARGET_HUMIDITY = "target_humidity"
-CONF_MIST_LEVEL = "mist_level"
+
+# These must stay in sync with types.h (HUMIDITY_MIN/MAX).
+HUMIDITY_MIN = 40
+HUMIDITY_MAX = 80
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -66,33 +66,22 @@ CONFIG_SCHEMA = (
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
                 icon="mdi:waves",
             ),
-            # Switches
-            cv.Optional(CONF_POWER): switch.switch_schema(
-                PowerSwitch,
-                icon="mdi:power",
-                entity_category=ENTITY_CATEGORY_NONE,
+            # Fan (restore_mode is included in fan_schema)
+            cv.Optional(CONF_FAN): fan.fan_schema(
+                HumidifierFan,
+                icon="mdi:air-humidifier",
             ),
+            # Switches
             cv.Optional(CONF_DISPLAY): switch.switch_schema(
                 DisplaySwitch,
                 icon="mdi:monitor",
                 entity_category=ENTITY_CATEGORY_CONFIG,
-            ),
-            # Select
-            cv.Optional(CONF_MODE): select.select_schema(
-                ModeSelect,
-                icon="mdi:format-list-bulleted",
-                entity_category=ENTITY_CATEGORY_NONE,
             ),
             # Numbers
             cv.Optional(CONF_TARGET_HUMIDITY): number.number_schema(
                 TargetHumidityNumber,
                 unit_of_measurement=UNIT_PERCENT,
                 icon="mdi:water-percent",
-                entity_category=ENTITY_CATEGORY_NONE,
-            ),
-            cv.Optional(CONF_MIST_LEVEL): number.number_schema(
-                MistLevelNumber,
-                icon="mdi:weather-fog",
                 entity_category=ENTITY_CATEGORY_NONE,
             ),
         }
@@ -123,22 +112,15 @@ async def to_code(config):
         s = await binary_sensor.new_binary_sensor(c)
         cg.add(var.set_misting_sensor(s))
 
-    if c := config.get(CONF_POWER):
-        s = await switch.new_switch(c)
-        cg.add(var.set_power_switch(s))
+    if c := config.get(CONF_FAN):
+        f = cg.new_Pvariable(c[CONF_ID])
+        await fan.register_fan(f, c)
+        cg.add(var.set_fan(f))
 
     if c := config.get(CONF_DISPLAY):
         s = await switch.new_switch(c)
         cg.add(var.set_display_switch(s))
 
-    if c := config.get(CONF_MODE):
-        s = await select.new_select(c, options=["Auto", "Manual", "Sleep"])
-        cg.add(var.set_mode_select(s))
-
     if c := config.get(CONF_TARGET_HUMIDITY):
-        n = await number.new_number(c, min_value=40, max_value=80, step=1)
+        n = await number.new_number(c, min_value=HUMIDITY_MIN, max_value=HUMIDITY_MAX, step=1)
         cg.add(var.set_target_humidity_number(n))
-
-    if c := config.get(CONF_MIST_LEVEL):
-        n = await number.new_number(c, min_value=1, max_value=9, step=1)
-        cg.add(var.set_mist_level_number(n))

@@ -1,27 +1,40 @@
-script:
-  - id: update_wifi_led
-    mode: restart
-    then:
-      - lambda: |-
-          id(air_purifier).send_wifi_status(
-            id(api_connected).state,
-            wifi::global_wifi_component->is_connected()
-          );
-          
-esphome:
+# Levoit Vital 200S air purifier — ESPHome sample configuration.
+#
+# Paste this whole file into ESPHome Builder (or the Home Assistant ESPHome
+# add-on), adjust the substitutions below, add the secrets listed in
+# secrets.yaml.example, and hit Install. Nothing needs to be copied locally.
+#
+# Hardware: an ESP32-C3 replacing the stock Wi-Fi module. UART @ 115200,
+# TX GPIO19 / RX GPIO18.
+
+substitutions:
   name: air-purifier
   friendly_name: "Air Purifier"
+  board: esp32-c3-devkitm-1
+  tx_pin: GPIO19
+  rx_pin: GPIO18
+  # Where the component code comes from. CI overrides this with a local path.
+  component_source: github://lukednguyen/esphome-levoit
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
   on_boot:
     priority: -100
     then:
       - script.execute: update_wifi_led
+      # Forces the purifier on at every boot, overriding the fan's restored
+      # state (this runs after PurifierFan::setup()). Delete this line if you
+      # would rather honour the state restored from flash. See Q1.
       - fan.turn_on: air_purifier_fan
 
 external_components:
-  - source: github://lukednguyen/esphome-levoit
+  - source: ${component_source}
     components: [air_purifier_vital200s]
+    refresh: 1d
 
 esp32:
+  board: ${board}
   variant: esp32c3
   framework:
     type: esp-idf
@@ -36,11 +49,6 @@ api:
 ota:
   - platform: esphome
 
-captive_portal:
-
-web_server:
-  port: 80
-
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -48,6 +56,21 @@ wifi:
     - script.execute: update_wifi_led
   on_disconnect:
     - script.execute: update_wifi_led
+
+captive_portal:
+
+web_server:
+  port: 80
+
+script:
+  - id: update_wifi_led
+    mode: restart
+    then:
+      - lambda: |-
+          id(air_purifier).send_wifi_status(
+            id(api_connected).state,
+            wifi::global_wifi_component->is_connected()
+          );
 
 binary_sensor:
   - platform: status
@@ -59,8 +82,8 @@ binary_sensor:
 
 uart:
   id: uart_bus
-  tx_pin: GPIO19
-  rx_pin: GPIO18
+  tx_pin: ${tx_pin}
+  rx_pin: ${rx_pin}
   baud_rate: 115200
 
 air_purifier_vital200s:

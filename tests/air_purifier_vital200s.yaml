@@ -1,0 +1,8 @@
+# CI-only wrapper. Builds the real sample config (../air_purifier_vital200s.yaml)
+# against the components in this working tree instead of the published GitHub repo.
+# Not intended for flashing to a device.
+substitutions:
+  component_source: ../components
+
+packages:
+  device: !include ../air_purifier_vital200s.yaml

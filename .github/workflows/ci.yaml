@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  schedule:
+    # Weekly, to catch upstream ESPHome regressions.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install clang-format==20.1.7   # keep in sync with local (.clang-format / Phase 0)
+      - name: Check C++ formatting
+        run: |
+          find components \( -name '*.cpp' -o -name '*.h' \) -print0 \
+            | xargs -0 clang-format --dry-run --Werror
+
+  build:
+    name: build ${{ matrix.config }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - tests/air_purifier_vital200s.yaml
+          - tests/humidifier_oasismist1000s.yaml
+    steps:
+      - uses: actions/checkout@v7
+      - name: Provide CI secrets
+        run: |
+          cp secrets.yaml.example secrets.yaml
+          cp secrets.yaml.example tests/secrets.yaml
+      - name: Build firmware
+        id: build
+        uses: esphome/build-action@v8.1.0
+        with:
+          yaml-file: ${{ matrix.config }}
+          version: latest
+      - name: Upload firmware
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.build.outputs.name }}
+          path: ${{ steps.build.outputs.name }}
+          if-no-files-found: warn
